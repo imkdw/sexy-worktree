@@ -1,6 +1,0 @@
-{
-  "discord.enabled": true,
-  "cSpell.words": ["issuetype", "PPLSC"],
-  "typescript.preferences.importModuleSpecifier": "relative",
-  "typescript.preferences.importModuleSpecifierEnding": "auto"
-}
