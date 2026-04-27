@@ -1,0 +1,11 @@
+.superpowers/
+node_modules/
+out/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+.DS_Store
+.env
+.env.local
+*.log

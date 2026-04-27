@@ -1,0 +1,117 @@
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/600.css";
+@import "tailwindcss";
+
+@theme {
+  /* Surfaces.
+     NOTE: --color-background (NOT --color-base) — `--color-base` would collide
+     with `--text-base` (13px font-size) since v4's `text-{name}` looks up both
+     namespaces. */
+  --color-background: #09090b;
+  --color-surface: #18181b;
+  --color-elevated: #27272a;
+  --color-border-subtle: #27272a;
+  --color-border-strong: #3f3f46;
+
+  /* Text */
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #d4d4d8;
+  --color-text-muted: #71717a;
+  --color-text-faint: #52525b;
+
+  /* Semantic */
+  --color-accent: #22d3ee;
+  --color-accent-soft: rgba(34, 211, 238, 0.3);
+  --color-in-progress: #fbbf24;
+  --color-success: #34d399;
+  --color-destructive: #f87171;
+
+  /* Typography */
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 13px;
+  --text-lg: 15px;
+  --text-xl: 18px;
+
+  /* Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 only */
+  --spacing-1: 4px;
+  --spacing-2: 8px;
+  --spacing-3: 12px;
+  --spacing-4: 16px;
+  --spacing-6: 24px;
+  --spacing-8: 32px;
+
+  /* Component-fixed sizes (named, outside the numeric scale) */
+  --spacing-toast: 22.5rem;
+  --spacing-modal: 30rem;
+  --spacing-modal-wide: 32.5rem;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Motion (kept for use in transition utilities later if needed) */
+  --motion-fast: 150ms ease-out;
+  --motion-mid: 200ms ease-in-out;
+  --motion-slow: 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Custom utilities */
+@utility grid-card-rows {
+  grid-auto-rows: calc(
+    (100vh - var(--titlebar-h) - var(--tabbar-h) - var(--toolbar-h) - var(--statusbar-h)) / 2
+  );
+}
+
+/* Layout/chrome constants — not exposed as utilities */
+:root {
+  --titlebar-h: 36px;
+  --tabbar-h: 36px;
+  --toolbar-h: 44px;
+  --statusbar-h: 24px;
+  --rail-w: 160px;
+  --rail-w-collapsed: 48px;
+  --border-hairline: 1px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 18px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+/* xterm scrollbar — global styling (cannot be expressed as Tailwind utilities) */
+.xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: var(--radius-full);
+}

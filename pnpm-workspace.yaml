@@ -1,0 +1,10 @@
+# pnpm-workspace.yaml
+packages:
+  - .
+
+# Native modules that must run their build scripts during install.
+# pnpm 9+ refuses to run install scripts unless the package is on this list.
+onlyBuiltDependencies:
+  - better-sqlite3
+  - node-pty
+  - electron
