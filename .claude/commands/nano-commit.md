@@ -10,7 +10,7 @@ Stage and commit changes at nano granularity — one logical change per commit. 
 - **Conventional-commit prefix required.** Every commit message must start with one of the allowed prefixes followed by `: ` and a Korean description. Allowed prefixes: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `style`, `perf`. Do not use bracket tags like `[Fix]` or `[Feature]`.
 - **Nano commits.** Each commit must represent exactly one logical change. Split by feature, impact area, or file group. Never bundle unrelated changes.
 - **Post-commit verification.** After all commits, run `git log` and confirm zero AI-related strings appear.
-- **Exclude plan documents.** Never stage or commit files under `_workspace/` or `plans/`. These are temporary planning artifacts, not deliverables.
+- **Exclude plan and spec documents.** Never stage or commit files under `_workspace/`, `plans/`, or `specs/`. These are temporary planning/spec artifacts, not deliverables.
 
 ## Workflow
 
@@ -24,7 +24,7 @@ git diff --cached
 
 Review all modified, added, and deleted files. Understand what each change does.
 
-**Skip files under `_workspace/` and `plans/`** — these are temporary planning documents and must not be committed.
+**Skip files under `_workspace/`, `plans/`, and `specs/`** — these are temporary planning/spec documents and must not be committed.
 
 ### Step 2: Group into Nano Units
 
