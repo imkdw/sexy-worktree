@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SplitSquareVertical, SplitSquareHorizontal, X, Check, Square } from "lucide-react";
 import { Icon } from "../icons/Icon";
-import { PaneTree } from "./PaneTree";
+import { PaneTree, type LeafExit } from "./PaneTree";
 import { usePaneTree } from "./usePaneTree";
 import { useSelectMode } from "../state/selectMode";
 import { NoPane } from "../empty/NoPane";
@@ -53,7 +53,7 @@ export function Card({
 
   const entriesRef = useRef<Map<string, LeafEntry>>(new Map());
   const [, bumpEntriesVersion] = useState(0);
-  const [exitCodes, setExitCodes] = useState<Map<string, number>>(new Map());
+  const [exitInfo, setExitInfo] = useState<Map<string, LeafExit>>(new Map());
 
   const leafIds = useMemo(() => collectLeafIds(tree), [tree]);
 
@@ -66,16 +66,22 @@ export function Card({
       if (pool.has(id)) continue;
       const entry = createLeafEntry();
       entry.onCommandRun = (cmd) => updateLeafCommand(id, cmd);
-      entry.onExit = (code) =>
-        setExitCodes((prev) => {
+      entry.onExit = (code, lastBytes) =>
+        setExitInfo((prev) => {
           const next = new Map(prev);
-          next.set(id, code);
+          next.set(id, { kind: "exited", code, lastBytes });
+          return next;
+        });
+      entry.onSpawnError = (e) =>
+        setExitInfo((prev) => {
+          const next = new Map(prev);
+          next.set(id, { kind: "spawn-failed", error: e });
           return next;
         });
       pool.set(id, entry);
       changed = true;
-      void spawnPtyForEntry(entry, cwd).then((ptyId) => {
-        if (ptyId && !firstPtyIdRef.current) firstPtyIdRef.current = ptyId;
+      void spawnPtyForEntry(entry, cwd).then((r) => {
+        if (r.ok && !firstPtyIdRef.current) firstPtyIdRef.current = r.id;
       });
     }
 
@@ -85,7 +91,7 @@ export function Card({
       if (entry) disposeLeafEntry(entry);
       pool.delete(id);
       changed = true;
-      setExitCodes((prev) => {
+      setExitInfo((prev) => {
         if (!prev.has(id)) return prev;
         const next = new Map(prev);
         next.delete(id);
@@ -109,7 +115,7 @@ export function Card({
       const entry = entriesRef.current.get(leafId);
       if (!entry) return;
       disposePtyForEntry(entry);
-      setExitCodes((prev) => {
+      setExitInfo((prev) => {
         if (!prev.has(leafId)) return prev;
         const next = new Map(prev);
         next.delete(leafId);
@@ -232,7 +238,7 @@ export function Card({
             tree={tree}
             focusedId={focusedId}
             entries={entriesRef.current}
-            exitCodes={exitCodes}
+            exitInfo={exitInfo}
             onFocusLeaf={setFocusedId}
             onResize={resize}
             onRestart={handleRestart}

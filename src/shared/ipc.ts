@@ -58,7 +58,16 @@ export type PtySpawnArgs = {
 };
 
 export type PtyDataEvent = { id: PtyId; data: string };
-export type PtyExitEvent = { id: PtyId; exitCode: number; signal: number | null };
+export type PtyExitEvent = {
+  id: PtyId;
+  exitCode: number;
+  signal: number | null;
+  lastBytes: string;
+};
+
+export type PtySpawnError =
+  | { kind: "cwd-missing"; cwd: string; message: string }
+  | { kind: "unknown"; message: string };
 
 export type IpcChannels = {
   "repo:openDialog": {
@@ -99,7 +108,7 @@ export type IpcChannels = {
   };
   "pty:spawn": {
     in: PtySpawnArgs;
-    out: Result<{ id: PtyId }, { message: string }>;
+    out: Result<{ id: PtyId }, PtySpawnError>;
   };
   "pty:write": {
     in: { id: PtyId; data: string };

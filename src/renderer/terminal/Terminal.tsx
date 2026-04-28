@@ -1,6 +1,7 @@
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
+import type { PtySpawnError } from "@shared/ipc";
 import { api } from "../ipc/api";
 import { cssVar } from "../lib/cssVar";
 
@@ -12,8 +13,11 @@ export type LeafEntry = {
   unsubData: (() => void) | null;
   unsubExit: (() => void) | null;
   onCommandRun: ((cmd: string) => void) | null;
-  onExit: ((code: number) => void) | null;
+  onExit: ((code: number, lastBytes: string) => void) | null;
+  onSpawnError: ((err: PtySpawnError) => void) | null;
 };
+
+export type SpawnResult = { ok: true; id: string } | { ok: false; error: PtySpawnError };
 
 /**
  * leaf 단위 xterm + FitAddon 인스턴스를 만든다.
@@ -48,6 +52,7 @@ export function createLeafEntry(): LeafEntry {
     unsubExit: null,
     onCommandRun: null,
     onExit: null,
+    onSpawnError: null,
   };
 
   term.onData((data) => {
@@ -75,14 +80,20 @@ export function createLeafEntry(): LeafEntry {
 /**
  * entry에 새 PTY를 spawn하고 데이터/종료 리스너를 부착한다.
  * 이미 ptyId가 있으면 먼저 disposePtyForEntry로 정리한 뒤 호출해야 한다.
+ *
+ * spawn 자체가 실패하면(예: cwd 누락) onSpawnError 콜백이 호출되고
+ * `{ ok: false }`가 반환된다. 셸이 spawn 후에 죽는 경우는 onExit 경로로 흐른다.
  */
-export async function spawnPtyForEntry(entry: LeafEntry, cwd: string): Promise<string | null> {
+export async function spawnPtyForEntry(entry: LeafEntry, cwd: string): Promise<SpawnResult> {
   const r = await api.pty.spawn({
     cwd,
     cols: entry.term.cols,
     rows: entry.term.rows,
   });
-  if (!r.ok) return null;
+  if (!r.ok) {
+    entry.onSpawnError?.(r.error);
+    return { ok: false, error: r.error };
+  }
   const { id } = r.value;
   entry.ptyId = id;
 
@@ -92,11 +103,11 @@ export async function spawnPtyForEntry(entry: LeafEntry, cwd: string): Promise<s
   entry.unsubExit = api.pty.onExit((evt) => {
     if (evt.id === id) {
       entry.term.write(`\r\n[process exited with code ${evt.exitCode}]\r\n`);
-      entry.onExit?.(evt.exitCode);
+      entry.onExit?.(evt.exitCode, evt.lastBytes);
     }
   });
 
-  return id;
+  return { ok: true, id };
 }
 
 /**

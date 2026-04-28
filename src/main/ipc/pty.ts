@@ -1,7 +1,7 @@
 import { ipcMain, type BrowserWindow } from "electron";
 import { ok, err } from "@shared/result";
 import type { IpcIn, IpcOut, PtyDataEvent, PtyExitEvent } from "@shared/ipc";
-import { PtyManager } from "../pty/manager";
+import { CwdMissingError, PtyManager } from "../pty/manager";
 
 export const ptyManager = new PtyManager();
 
@@ -17,15 +17,18 @@ export function registerPtyHandlers(getWindow: () => BrowserWindow | null): void
           const evt: PtyDataEvent = { id, data };
           win.webContents.send("pty:data", evt);
         });
-        ptyManager.onExit(id, (exitCode, signal) => {
+        ptyManager.onExit(id, (exitCode, signal, lastBytes) => {
           const win = getWindow();
           if (!win) return;
-          const evt: PtyExitEvent = { id, exitCode, signal };
+          const evt: PtyExitEvent = { id, exitCode, signal, lastBytes };
           win.webContents.send("pty:exit", evt);
         });
         return ok({ id });
       } catch (e) {
-        return err({ message: (e as Error).message });
+        if (e instanceof CwdMissingError) {
+          return err({ kind: "cwd-missing", cwd: e.cwd, message: e.message });
+        }
+        return err({ kind: "unknown", message: (e as Error).message });
       }
     }
   );
