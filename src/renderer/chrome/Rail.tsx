@@ -1,16 +1,20 @@
-import { useState } from "react";
+import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Icon } from "../icons/Icon";
 import { cn } from "../lib/cn";
 import { useWorktrees, worktreeId } from "../state/worktrees";
+import { useRailWidth } from "./useRailWidth";
 
 export function Rail(): React.JSX.Element {
-  const [collapsed, setCollapsed] = useState(false);
+  const { collapsed, isDragging, toggleCollapsed, startDrag } = useRailWidth();
+  const asideRef = useRef<HTMLElement>(null);
   const { worktrees, activeId, setActive } = useWorktrees();
   return (
     <aside
+      ref={asideRef}
       className={cn(
-        "border-border-subtle bg-background flex w-[var(--rail-w)] shrink-0 flex-col border-r transition-[width] duration-200",
+        "border-border-subtle bg-background relative flex w-[var(--rail-w)] shrink-0 flex-col border-r",
+        !isDragging && "transition-[width] duration-200",
         collapsed && "w-[var(--rail-w-collapsed)]"
       )}
     >
@@ -41,12 +45,24 @@ export function Rail(): React.JSX.Element {
       <div className="border-border-subtle flex justify-end border-t p-2">
         <button
           className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150"
-          onClick={() => setCollapsed((c) => !c)}
+          onClick={() => toggleCollapsed()}
           title={collapsed ? "Expand" : "Collapse"}
         >
           <Icon icon={collapsed ? ChevronRight : ChevronLeft} size={14} />
         </button>
       </div>
+      <div
+        role="separator"
+        aria-orientation="vertical"
+        onMouseDown={(e) => {
+          if (asideRef.current) startDrag(e, asideRef.current);
+        }}
+        className={cn(
+          "absolute top-0 right-0 h-full w-1 cursor-col-resize",
+          "hover:bg-border-strong",
+          isDragging && "bg-accent"
+        )}
+      />
     </aside>
   );
 }

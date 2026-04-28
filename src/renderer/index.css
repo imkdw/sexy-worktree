@@ -114,7 +114,10 @@
   --tabbar-h: 36px;
   --toolbar-h: 44px;
   --statusbar-h: 24px;
-  --rail-w: 160px;
+  --rail-w-default: 200px;
+  --rail-w-min: 80px;
+  --rail-w-max: 480px;
+  --rail-w: var(--rail-w-default);
   --rail-w-collapsed: 48px;
   --border-hairline: 1px;
 }
