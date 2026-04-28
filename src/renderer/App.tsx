@@ -14,6 +14,7 @@ import { KeyboardShortcuts } from "./shortcuts/KeyboardShortcuts";
 import { NewWorktreeModal } from "./newWorktree/NewWorktreeModal";
 import { NewWorktreeProvider } from "./state/newWorktree";
 import { ToastProvider } from "./state/toast";
+import { TerminalSessionsProvider } from "./state/terminalSessions";
 import { ToastLayer } from "./toast/Toast";
 import { NoRepo } from "./empty/NoRepo";
 import { Settings } from "./settings/Settings";
@@ -78,13 +79,15 @@ export function App(): React.JSX.Element {
     <ToastProvider>
       <ReposProvider>
         <WorktreesProvider>
-          <NewWorktreeProvider>
-            <SelectModeProvider>
-              <ModeProvider>
-                <Shell />
-              </ModeProvider>
-            </SelectModeProvider>
-          </NewWorktreeProvider>
+          <TerminalSessionsProvider>
+            <NewWorktreeProvider>
+              <SelectModeProvider>
+                <ModeProvider>
+                  <Shell />
+                </ModeProvider>
+              </SelectModeProvider>
+            </NewWorktreeProvider>
+          </TerminalSessionsProvider>
         </WorktreesProvider>
       </ReposProvider>
     </ToastProvider>

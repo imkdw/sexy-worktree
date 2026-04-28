@@ -1,22 +1,14 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { SplitSquareVertical, SplitSquareHorizontal, X, Check, Square } from "lucide-react";
 import { Icon } from "../icons/Icon";
-import { PaneTree, type LeafExit } from "./PaneTree";
-import { usePaneTree } from "./usePaneTree";
+import { PaneTree } from "./PaneTree";
 import { useSelectMode } from "../state/selectMode";
+import { useTerminalSessions } from "../state/terminalSessions";
 import { NoPane } from "../empty/NoPane";
 import type { ShortcutAction } from "../shortcuts/shortcutMap";
 import { paneFocusNeighbour } from "@shared/paneNav";
-import type { PaneNode } from "@shared/pane";
-import { api } from "../ipc/api";
+import { findLeafIds } from "@shared/paneOps";
 import { cn } from "../lib/cn";
-import {
-  createLeafEntry,
-  disposeLeafEntry,
-  disposePtyForEntry,
-  spawnPtyForEntry,
-  type LeafEntry,
-} from "../terminal/Terminal";
 
 type CardProps = {
   repoId: number;
@@ -32,8 +24,8 @@ type CardProps = {
 /**
  * 단일 워크트리를 표현하는 카드 컴포넌트.
  *
- * 페인 트리, 단축키 액션 처리, 선택 모드 토글을 담당한다.
- * 워크트리 생성 직후 기본 시작 명령이 설정돼 있으면 첫 PTY에 자동 입력한다.
+ * 페인 트리·터미널 인스턴스는 TerminalSessionsProvider가 소유하며,
+ * 카드는 focusedId·단축키·UI 책임만 갖는다. Card unmount 시에도 풀은 보존된다.
  */
 export function Card({
   repoId,
@@ -45,127 +37,59 @@ export function Card({
   allIds,
   lastSelectedId,
 }: CardProps): React.JSX.Element {
-  const { tree, focusedId, setFocusedId, split, closeFocused, resize, newPane, updateLeafCommand } =
-    usePaneTree(repoId, cwd);
+  const ops = useTerminalSessions(repoId, cwd);
   const sm = useSelectMode();
   const isSelected = sm.selected.has(cwd);
-  const firstPtyIdRef = useRef<string | null>(null);
+  const [focusedId, setFocusedId] = useState<string | null>(null);
 
-  const entriesRef = useRef<Map<string, LeafEntry>>(new Map());
-  const [, bumpEntriesVersion] = useState(0);
-  const [exitInfo, setExitInfo] = useState<Map<string, LeafExit>>(new Map());
-
-  const leafIds = useMemo(() => collectLeafIds(tree), [tree]);
-
+  // 트리가 처음 로드되거나 focusedId가 사라지면 첫 leaf로 초기화
   useEffect(() => {
-    const pool = entriesRef.current;
-    const desired = new Set(leafIds);
-    let changed = false;
-
-    for (const id of leafIds) {
-      if (pool.has(id)) continue;
-      const entry = createLeafEntry();
-      entry.onCommandRun = (cmd) => updateLeafCommand(id, cmd);
-      entry.onExit = (code, lastBytes) =>
-        setExitInfo((prev) => {
-          const next = new Map(prev);
-          next.set(id, { kind: "exited", code, lastBytes });
-          return next;
-        });
-      entry.onSpawnError = (e) =>
-        setExitInfo((prev) => {
-          const next = new Map(prev);
-          next.set(id, { kind: "spawn-failed", error: e });
-          return next;
-        });
-      pool.set(id, entry);
-      changed = true;
-      void spawnPtyForEntry(entry, cwd).then((r) => {
-        if (r.ok && !firstPtyIdRef.current) firstPtyIdRef.current = r.id;
-      });
+    if (!ops.tree) {
+      if (focusedId !== null) setFocusedId(null);
+      return;
     }
+    const ids = findLeafIds(ops.tree);
+    if (focusedId && ids.includes(focusedId)) return;
+    setFocusedId(ids[0] ?? null);
+  }, [ops.tree, focusedId]);
 
-    for (const id of [...pool.keys()]) {
-      if (desired.has(id)) continue;
-      const entry = pool.get(id);
-      if (entry) disposeLeafEntry(entry);
-      pool.delete(id);
-      changed = true;
-      setExitInfo((prev) => {
-        if (!prev.has(id)) return prev;
-        const next = new Map(prev);
-        next.delete(id);
-        return next;
-      });
-    }
-
-    if (changed) bumpEntriesVersion((v) => v + 1);
-  }, [leafIds, cwd, updateLeafCommand]);
-
-  useEffect(() => {
-    const pool = entriesRef.current;
-    return () => {
-      for (const entry of pool.values()) disposeLeafEntry(entry);
-      pool.clear();
-    };
-  }, []);
-
-  const handleRestart = useCallback(
-    (leafId: string) => {
-      const entry = entriesRef.current.get(leafId);
-      if (!entry) return;
-      disposePtyForEntry(entry);
-      setExitInfo((prev) => {
-        if (!prev.has(leafId)) return prev;
-        const next = new Map(prev);
-        next.delete(leafId);
-        return next;
-      });
-      entry.term.write("\r\n[restarting]\r\n");
-      void spawnPtyForEntry(entry, cwd);
+  const handleSplit = useCallback(
+    (orientation: "horizontal" | "vertical") => {
+      if (!focusedId) return;
+      const newId = ops.split(focusedId, orientation);
+      if (newId) setFocusedId(newId);
     },
-    [cwd]
+    [ops, focusedId]
   );
 
+  const handleClose = useCallback(() => {
+    if (!focusedId) return;
+    ops.closePane(focusedId);
+    // 새 focusedId는 위 useEffect가 처리
+  }, [ops, focusedId]);
+
+  const handleNewPane = useCallback(() => {
+    const id = ops.newPane();
+    setFocusedId(id);
+  }, [ops]);
+
+  // 단축키 액션 — 활성 카드만 반응
   useEffect(() => {
     if (!active) return;
     function handle(e: Event): void {
       const action = (e as CustomEvent<ShortcutAction>).detail;
-      if (action === "split-v") split("vertical");
-      if (action === "split-h") split("horizontal");
-      if (action === "close-pane") closeFocused();
-      if (action.startsWith("pane-focus-") && tree && focusedId) {
+      if (action === "split-v") handleSplit("vertical");
+      if (action === "split-h") handleSplit("horizontal");
+      if (action === "close-pane") handleClose();
+      if (action.startsWith("pane-focus-") && ops.tree && focusedId) {
         const dir = action.replace("pane-focus-", "") as "left" | "right" | "up" | "down";
-        const next = paneFocusNeighbour(tree, focusedId, dir);
+        const next = paneFocusNeighbour(ops.tree, focusedId, dir);
         if (next) setFocusedId(next);
       }
     }
     window.addEventListener("app:card-action", handle as EventListener);
     return () => window.removeEventListener("app:card-action", handle as EventListener);
-  }, [active, split, closeFocused, tree, focusedId, setFocusedId]);
-
-  useEffect(() => {
-    const fn = (e: Event): void => {
-      const detail = (e as CustomEvent).detail as { worktreePath: string; repoPath: string };
-      if (detail.worktreePath !== cwd) return;
-      void (async () => {
-        const c = await api.config.get({ repoPath: detail.repoPath });
-        const cmd = c.ok ? c.value.config.worktree.defaultStartupCommand : "";
-        if (!cmd) return;
-        // 첫 PTY가 나타날 때까지 폴링으로 대기
-        for (let i = 0; i < 20; i++) {
-          const id = firstPtyIdRef.current;
-          if (id) {
-            await api.pty.write({ id, data: cmd + "\n" });
-            return;
-          }
-          await new Promise((r) => setTimeout(r, 100));
-        }
-      })();
-    };
-    window.addEventListener("app:worktree-created", fn);
-    return () => window.removeEventListener("app:worktree-created", fn);
-  }, [cwd]);
+  }, [active, handleSplit, handleClose, ops.tree, focusedId]);
 
   function handleClick(e: React.MouseEvent): void {
     if (sm.active && !isMain) {
@@ -205,7 +129,7 @@ export function Card({
             title="Split Vertical (⌘D)"
             onClick={(e) => {
               e.stopPropagation();
-              split("vertical");
+              handleSplit("vertical");
             }}
           >
             <Icon icon={SplitSquareVertical} size={14} />
@@ -215,7 +139,7 @@ export function Card({
             title="Split Horizontal (⌘⇧D)"
             onClick={(e) => {
               e.stopPropagation();
-              split("horizontal");
+              handleSplit("horizontal");
             }}
           >
             <Icon icon={SplitSquareHorizontal} size={14} />
@@ -225,7 +149,7 @@ export function Card({
             title="Close pane (⌘W)"
             onClick={(e) => {
               e.stopPropagation();
-              closeFocused();
+              handleClose();
             }}
           >
             <Icon icon={X} size={14} />
@@ -233,26 +157,20 @@ export function Card({
         </div>
       </header>
       <div className="bg-background flex min-h-0 flex-1">
-        {tree ? (
+        {ops.tree ? (
           <PaneTree
-            tree={tree}
+            tree={ops.tree}
             focusedId={focusedId}
-            entries={entriesRef.current}
-            exitInfo={exitInfo}
+            getEntry={ops.getEntry}
+            getExit={ops.getExit}
             onFocusLeaf={setFocusedId}
-            onResize={resize}
-            onRestart={handleRestart}
+            onResize={ops.resize}
+            onRestart={ops.restart}
           />
         ) : (
-          <NoPane onNewPane={newPane} />
+          <NoPane onNewPane={handleNewPane} />
         )}
       </div>
     </section>
   );
-}
-
-function collectLeafIds(node: PaneNode | null): string[] {
-  if (!node) return [];
-  if (node.kind === "leaf") return [node.id];
-  return [...collectLeafIds(node.a), ...collectLeafIds(node.b)];
 }

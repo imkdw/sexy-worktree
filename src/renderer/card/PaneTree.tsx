@@ -16,8 +16,8 @@ export type LeafExit =
 type Props = {
   tree: PaneNode;
   focusedId: string | null;
-  entries: Map<string, LeafEntry>;
-  exitInfo: Map<string, LeafExit>;
+  getEntry: (leafId: string) => LeafEntry | null;
+  getExit: (leafId: string) => LeafExit | null;
   onFocusLeaf: (id: string) => void;
   onResize: (path: number[], sizes: [number, number]) => void;
   onRestart: (id: string) => void;
@@ -32,8 +32,8 @@ type Props = {
 export function PaneTree({
   tree,
   focusedId,
-  entries,
-  exitInfo,
+  getEntry,
+  getExit,
   onFocusLeaf,
   onResize,
   onRestart,
@@ -45,8 +45,8 @@ export function PaneTree({
           key={node.id}
           focused={node.id === focusedId}
           lastCommand={node.lastCommand}
-          entry={entries.get(node.id) ?? null}
-          exit={exitInfo.get(node.id) ?? null}
+          entry={getEntry(node.id)}
+          exit={getExit(node.id)}
           onFocus={() => onFocusLeaf(node.id)}
           onRestart={() => onRestart(node.id)}
         />
