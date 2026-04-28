@@ -29,6 +29,22 @@ describe("parseWorktreePorcelain", () => {
     const out = parseWorktreePorcelain(input);
     expect(out).toEqual([{ path: "/a", branch: null, head: "abc", isMain: true }]);
   });
+
+  it("filters out prunable worktrees (디렉터리 사라진 고아)", () => {
+    const input = [
+      "worktree /a",
+      "HEAD abc",
+      "branch refs/heads/main",
+      "",
+      "worktree /gone",
+      "HEAD def",
+      "branch refs/heads/orphan",
+      "prunable gitdir file points to non-existent location",
+      "",
+    ].join("\n");
+    const out = parseWorktreePorcelain(input);
+    expect(out).toEqual([{ path: "/a", branch: "main", head: "abc", isMain: true }]);
+  });
 });
 
 let repo: string;
