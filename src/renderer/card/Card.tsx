@@ -98,7 +98,7 @@ export function Card({
   const selectable = sm.active && !isMain;
   const selected = selectable && isSelected;
   const cardClass = cn(
-    "group relative flex min-h-0 flex-col overflow-hidden rounded-md border border-border-subtle bg-surface",
+    "group relative flex min-h-0 w-full flex-col overflow-hidden rounded-md border border-border-subtle bg-surface",
     selectable && "cursor-pointer",
     selected && "border-accent",
     active && !selected && "border-accent-soft"

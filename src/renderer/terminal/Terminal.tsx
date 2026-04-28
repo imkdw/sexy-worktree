@@ -141,7 +141,7 @@ export function Terminal({
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full w-full flex-col">
       {lastCommand && !replayed && (
         <div className="text-text-muted flex items-center gap-2 p-2 text-xs">
           <span>
