@@ -22,6 +22,16 @@ Before doing **any** UI work — adding components, building new screens, changi
 - **Color, spacing, radius:** use the tokens defined in `DESIGN.md`. Never hard-code hex values in components.
 - **Process boundary:** the renderer must not call Node APIs directly. All git, PTY, and filesystem access goes through the main process via IPC.
 
+## Testing
+
+After any UI or feature change, you **must** use the `playwright-electron` MCP to launch the app and verify the behavior directly. Do not report a task as "done" based on type checks or unit tests alone.
+
+- Open the affected screens with `playwright-electron` and exercise the golden path plus key edge cases by clicking/typing through them.
+- Touch adjacent features that could regress — anything sharing the same component tree or IPC handler as the change.
+- If console errors or warnings appear, diagnose the cause before reporting (`browser_console_messages`).
+- If the app fails to launch or the environment blocks testing, say "could not test" explicitly. Never claim "verified working" without actually running it.
+- Exception: pure doc/comment edits and other changes with no runtime impact.
+
 ## Hard prohibitions
 
 - Direct calls to the Anthropic API (use the Claude Code SDK instead).
