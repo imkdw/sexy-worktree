@@ -67,6 +67,47 @@
   );
 }
 
+/* Scrollbar utilities */
+@utility scrollbar-hidden {
+  &::-webkit-scrollbar {
+    display: none;
+  }
+  scrollbar-width: none;
+}
+
+@utility scrollbar-terminal {
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: var(--radius-full);
+  }
+  &:hover::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+  }
+}
+
+/* xterm-viewport: scrollbar-terminal 과 동일 동작.
+   xterm.js 가 자체 DOM 으로 viewport 를 만들기 때문에 React 단에서
+   className 을 부여할 수 없어 글로벌 셀렉터를 유지한다. */
+.xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+.xterm-viewport::-webkit-scrollbar-track {
+  background: transparent;
+}
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: var(--radius-full);
+}
+.xterm-viewport:hover::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+}
+
 /* Layout/chrome constants — not exposed as utilities */
 :root {
   --titlebar-h: 36px;
@@ -105,13 +146,4 @@ button {
   border: 0;
   padding: 0;
   cursor: pointer;
-}
-
-/* xterm scrollbar — global styling (cannot be expressed as Tailwind utilities) */
-.xterm-viewport::-webkit-scrollbar {
-  width: 8px;
-}
-.xterm-viewport::-webkit-scrollbar-thumb {
-  background: var(--color-border-strong);
-  border-radius: var(--radius-full);
 }

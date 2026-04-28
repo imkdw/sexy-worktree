@@ -61,7 +61,7 @@ function Shell(): React.JSX.Element {
       />
       <div className="flex min-h-0 flex-1">
         <Rail />
-        <main className="bg-background flex-1 overflow-auto">
+        <main className="bg-background scrollbar-hidden flex-1 overflow-auto">
           {!activeRepoId ? <NoRepo /> : mode === "overview" ? <Grid /> : <Focus />}
         </main>
       </div>

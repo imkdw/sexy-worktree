@@ -232,6 +232,19 @@ Only **In progress** and **Failed** break the 1px hairline rule. PTY crash uses 
 - Icon (24px, `--color-text-faint`) → headline (`--text-xl`) → description (`--color-text-secondary`) → CTA button.
 - Extra meta (e.g. recent list) sits 16px below the CTA.
 
+### 6-8. Scrollbar
+
+스크롤바는 두 정책 중 하나를 따른다.
+
+| 영역                         | 정책         | 표현                                       |
+| ---------------------------- | ------------ | ------------------------------------------ |
+| Chrome (메인, Rail, 모달 등) | 완전 숨김    | 스크롤은 휠/트랙패드로만. 시각 노이즈 제거 |
+| 터미널 (xterm)               | hover-reveal | 평소 투명, viewport hover 시 thumb 만 노출 |
+
+- Chrome 영역에 새 `overflow-*` 컨테이너를 만들 때 `scrollbar-hidden` utility 를 반드시 함께 적용한다.
+- 터미널 thumb 색은 `--color-border-strong`, width 8px, radius full. 트랙은 항상 transparent.
+- 두 정책 외의 스크롤바 표현(예: 자체 색 입힌 항상 보이는 스크롤바)은 금지.
+
 ## 7. State conventions
 
 | State             | Expression                                                                                                |
@@ -271,11 +284,13 @@ These are auto-reject in code review:
 - Mixing in a sans-serif font (everything is `JetBrains Mono`).
 - Tailwind 임의값(`p-[7px]`, `bg-[#ff0000]`) 사용 — ESLint이 차단합니다.
 - 인라인 `style` 안에서 hex 하드코딩 — 반드시 `var(--color-…)` 또는 `cssVar()` 헬퍼를 사용.
+- OS 기본 스크롤바를 그대로 노출 (`overflow-auto` / `overflow-y-auto` 만 쓰고 `scrollbar-hidden` utility 누락).
 
 ## 10. Decision log
 
 > New decisions go on top (reverse-chronological). One line: **decision** — _why_.
 
+- **2026-04-28 — Chrome 영역 스크롤바 완전 숨김, 터미널만 hover-reveal.** 트랙패드/휠로 스크롤이 충분하고, OS 기본 스크롤바가 다크 팔레트와 충돌해 시각 노이즈만 됨. 터미널은 출력 위치 인지 큐가 필요해서 hover-reveal 로 절충. utility(`scrollbar-hidden`, `scrollbar-terminal`) 로 등록해 token-driven 철학과 ESLint 정책에 부합시킴.
 - **2026-04-27 — Tailwind v4 도입, tokens.css 제거. @theme 단일 소스.** 토큰 이름을 v4 prefix 컨벤션으로 정렬(예: `--color-background` 로 이전 등). `--color-base` 는 `text-base` 글꼴 크기 utility 와 충돌해서 `--color-background` 로 변경. 클래스 기반 DX 확보 + ESLint 강제로 토큰 우회를 코드 레벨에서 차단.
 - **2026-04-27 — ESLint·Prettier 도입.** `eslint-plugin-better-tailwindcss` 로 임의값 차단, `no-restricted-syntax` 로 hex 하드코딩 차단, `prettier-plugin-tailwindcss` 로 클래스 자동 정렬.
 - **2026-04-26 — Card state borders unified: in-progress (amber) and failed (red) use 2px dashed.** Same dashed treatment binds "임시/비정상 진행" states under one visual metaphor; PTY crash keeps the default 1px because the crash is informational, not an active state. Replaces the prior "skeleton-only" exception.

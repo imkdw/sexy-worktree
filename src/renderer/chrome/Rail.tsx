@@ -14,7 +14,7 @@ export function Rail(): React.JSX.Element {
         collapsed && "w-[var(--rail-w-collapsed)]"
       )}
     >
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="scrollbar-hidden flex-1 overflow-y-auto py-2">
         {worktrees.map((wt) => {
           const id = worktreeId(wt);
           const active = id === activeId;
