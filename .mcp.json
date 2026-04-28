@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "playwright-electron": {
+      "command": "./node_modules/.bin/playwright-mcp-electron",
+      "args": [
+        "--electron-app",
+        "./out/main/index.js",
+        "--electron-cwd",
+        ".",
+        "--isolated"
+      ]
+    }
+  }
+}

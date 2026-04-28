@@ -99,6 +99,9 @@ importers:
       jsdom:
         specifier: ^29.1.0
         version: 29.1.0
+      playwright-mcp-electron:
+        specifier: ^0.1.5
+        version: 0.1.5
       prettier:
         specifier: ^3
         version: 3.8.3
@@ -1626,6 +1629,11 @@ packages:
     resolution: {integrity: sha512-yhlQgA6mnOJUKOsRUFsgJdQCvkKhcz8tlZG5HBQfReYZy46OwLcY+Zia0mtdHsOo9y/hP+CxMN0TU9QxoOtG4g==}
     engines: {node: '>=6 <7 || >=8'}
 
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -2227,6 +2235,21 @@ packages:
   pify@2.3.0:
     resolution: {integrity: sha512-udgsAY+fTnvv7kI7aaxbqwWNb0AHiB0qBO89PZKPkoTmGOgdbrHDKD+0B2X4uTfJ/FT1R09r9gTsjUjNJotuog==}
     engines: {node: '>=0.10.0'}
+
+  playwright-core@1.58.0-alpha-2025-12-30:
+    resolution: {integrity: sha512-UEAS31nG7uZq5/UA6ZKF1fb5fkCBN7uj2zGXQOCDa55CjsO7j0NQGbm3UgNQWqo6zeiEfqx8rEhaDT2kCRuGuQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright-electron-mcp@1.58.0-alpha.2:
+    resolution: {integrity: sha512-lkGtc1AkqoX79ClrhHh6xyYbTko8Q5IiHIx2v7rE1P1+LXrdLYKziVtSV7C2wnzaQtF12CCUfZKp7qihdq0TgQ==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  playwright-mcp-electron@0.1.5:
+    resolution: {integrity: sha512-W4n8QetnriONquvyFHcabLayzT5P/tn4mv13QzrsLwb6wOLnxbhndAPi7+OdFDlLaMJi4PHgoO4kp3GssYVnzg==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   possible-typed-array-names@1.1.0:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
@@ -4430,6 +4453,9 @@ snapshots:
       jsonfile: 4.0.0
       universalify: 0.1.2
 
+  fsevents@2.3.2:
+    optional: true
+
   fsevents@2.3.3:
     optional: true
 
@@ -5029,6 +5055,19 @@ snapshots:
   picomatch@4.0.4: {}
 
   pify@2.3.0: {}
+
+  playwright-core@1.58.0-alpha-2025-12-30: {}
+
+  playwright-electron-mcp@1.58.0-alpha.2:
+    dependencies:
+      playwright-core: 1.58.0-alpha-2025-12-30
+    optionalDependencies:
+      fsevents: 2.3.2
+
+  playwright-mcp-electron@0.1.5:
+    dependencies:
+      playwright-core: 1.58.0-alpha-2025-12-30
+      playwright-electron-mcp: 1.58.0-alpha.2
 
   possible-typed-array-names@1.1.0: {}
 
