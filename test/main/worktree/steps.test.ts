@@ -3,7 +3,7 @@ import { execSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { stepFetch, stepWorktreeAdd, stepFilesCopy } from "./steps";
+import { stepFetch, stepWorktreeAdd, stepFilesCopy } from "@main/worktree/steps";
 
 let tmp: string;
 let upstream: string;

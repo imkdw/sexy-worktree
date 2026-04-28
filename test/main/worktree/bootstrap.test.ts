@@ -3,7 +3,7 @@ import { execSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Bootstrapper } from "./bootstrap";
+import { Bootstrapper } from "@main/worktree/bootstrap";
 
 let tmp: string;
 let upstream: string;

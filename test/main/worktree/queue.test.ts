@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SerialQueue } from "./queue";
+import { SerialQueue } from "@main/worktree/queue";
 
 describe("SerialQueue", () => {
   it("runs jobs strictly serially in enqueue order", async () => {

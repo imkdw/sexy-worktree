@@ -3,7 +3,7 @@ import { execSync } from "node:child_process";
 import { mkdtempSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { removeWorktree } from "./removeWorktree";
+import { removeWorktree } from "@main/git/removeWorktree";
 
 let tmp: string;
 let repo: string;

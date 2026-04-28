@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import Database from "better-sqlite3";
-import { runMigrations } from "./migrations";
-import { upsertRepo, listRepos, setActiveRepo, getActiveRepoId, closeRepo } from "./repos";
+import { runMigrations } from "@main/db/migrations";
+import { upsertRepo, listRepos, setActiveRepo, getActiveRepoId, closeRepo } from "@main/db/repos";
 
 let db: Database.Database;
 beforeEach(() => {

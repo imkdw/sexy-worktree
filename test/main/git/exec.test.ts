@@ -3,7 +3,7 @@ import { execSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { gitExec } from "./exec";
+import { gitExec } from "@main/git/exec";
 
 let repo: string;
 beforeAll(() => {

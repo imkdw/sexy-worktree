@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import Database from "better-sqlite3";
-import { runMigrations } from "./migrations";
-import { savePaneTree, loadPaneTree } from "./panes";
+import { runMigrations } from "@main/db/migrations";
+import { savePaneTree, loadPaneTree } from "@main/db/panes";
 import { newLeaf } from "@shared/pane";
 
 describe("panes table", () => {

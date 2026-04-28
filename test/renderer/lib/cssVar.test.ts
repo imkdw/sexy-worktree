@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { cssVar } from "./cssVar";
+import { cssVar } from "@renderer/lib/cssVar";
 
 describe("cssVar", () => {
   beforeEach(() => {

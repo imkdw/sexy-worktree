@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { loadRepoConfig } from "./load";
-import { DEFAULT_CONFIG } from "./defaults";
+import { loadRepoConfig } from "@main/config/load";
+import { DEFAULT_CONFIG } from "@main/config/defaults";
 
 let tmp: string;
 beforeEach(() => {

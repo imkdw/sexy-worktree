@@ -4,13 +4,14 @@ import { resolve } from "node:path";
 export default defineConfig({
   test: {
     environment: "node",
-    include: ["src/main/**/*.test.ts", "src/shared/**/*.test.ts", "src/renderer/**/*.test.ts"],
+    include: ["test/**/*.test.ts"],
     globals: false,
   },
   resolve: {
     alias: {
       "@shared": resolve(__dirname, "src/shared"),
       "@main": resolve(__dirname, "src/main"),
+      "@renderer": resolve(__dirname, "src/renderer"),
     },
   },
 });

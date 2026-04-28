@@ -21,5 +21,13 @@
       "@main/*": ["src/main/*"]
     }
   },
-  "include": ["src/main/**/*", "src/preload/**/*", "src/shared/**/*", "vitest.config.ts", "electron.vite.config.ts"]
+  "include": [
+    "src/main/**/*",
+    "src/preload/**/*",
+    "src/shared/**/*",
+    "test/main/**/*",
+    "test/shared/**/*",
+    "vitest.config.ts",
+    "electron.vite.config.ts"
+  ]
 }

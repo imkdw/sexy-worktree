@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { newLeaf } from "./pane";
-import { splitLeaf, closeLeaf, findLeafIds } from "./paneOps";
+import { newLeaf } from "@shared/pane";
+import { splitLeaf, closeLeaf, findLeafIds } from "@shared/paneOps";
 
 describe("paneOps", () => {
   it("split replaces the focused leaf with a split node", () => {

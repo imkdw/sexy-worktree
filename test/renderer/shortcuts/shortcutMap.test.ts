@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchShortcut, type ShortcutAction } from "./shortcutMap";
+import { matchShortcut, type ShortcutAction } from "@renderer/shortcuts/shortcutMap";
 
 function ev(init: {
   key?: string;

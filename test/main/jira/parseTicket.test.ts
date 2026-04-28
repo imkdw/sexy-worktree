@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseJiraTicket } from "./parseTicket";
+import { parseJiraTicket } from "@main/jira/parseTicket";
 
 describe("parseJiraTicket", () => {
   it("parses a bare key", () => {

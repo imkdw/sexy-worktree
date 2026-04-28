@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { newLeaf } from "./pane";
-import { splitLeaf } from "./paneOps";
-import { paneFocusNeighbour } from "./paneNav";
+import { newLeaf } from "@shared/pane";
+import { splitLeaf } from "@shared/paneOps";
+import { paneFocusNeighbour } from "@shared/paneNav";
 
 describe("paneFocusNeighbour", () => {
   it("moves right across a vertical split", () => {

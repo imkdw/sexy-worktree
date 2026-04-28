@@ -3,7 +3,7 @@ import { execSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { listWorktrees, parseWorktreePorcelain } from "./worktrees";
+import { listWorktrees, parseWorktreePorcelain } from "@main/git/worktrees";
 
 describe("parseWorktreePorcelain", () => {
   it("parses two entries", () => {

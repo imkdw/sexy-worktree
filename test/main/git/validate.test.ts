@@ -3,7 +3,7 @@ import { execSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { validateRepo } from "./validate";
+import { validateRepo } from "@main/git/validate";
 
 let tempBase: string;
 let mainRepo: string;

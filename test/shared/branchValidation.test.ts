@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateBranchName } from "./branchValidation";
+import { validateBranchName } from "@shared/branchValidation";
 
 describe("validateBranchName", () => {
   it("allows kebab-case names", () => {

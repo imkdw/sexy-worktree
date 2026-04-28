@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { makeKeychain } from "./keychain";
+import { makeKeychain } from "@main/secrets/keychain";
 
 const memSafeStorage = {
   isEncryptionAvailable: () => true,

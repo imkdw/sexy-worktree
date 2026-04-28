@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import Database from "better-sqlite3";
-import { runMigrations, MIGRATIONS } from "./migrations";
+import { runMigrations, MIGRATIONS } from "@main/db/migrations";
 
 describe("runMigrations", () => {
   it("creates the user_version table and applies all migrations", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { PtyManager } from "./manager";
+import { PtyManager } from "@main/pty/manager";
 
 const m = new PtyManager();
 afterEach(() => m.killAll());

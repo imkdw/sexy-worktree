@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { fetchJiraSummary } from "./client";
+import { fetchJiraSummary } from "@main/jira/client";
 
 const okResp = (body: any) =>
   ({
