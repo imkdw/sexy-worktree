@@ -5,6 +5,7 @@ import { api } from "../ipc/api";
 import { useRepos } from "../state/repos";
 import { PreflightNotice } from "./PreflightNotice";
 import { validateBranchName } from "@shared/branchValidation";
+import { Tooltip } from "../ui";
 
 type Props = {
   busy: boolean;
@@ -114,12 +115,14 @@ export function JiraTab({
               onChange={(e) => setDraftBranch(e.target.value)}
               style={{ flex: 1 }}
             />
-            <button
-              className="text-text-secondary hover:bg-elevated rounded-sm px-3 py-2 text-sm"
-              onClick={() => setEditingBranch(true)}
-            >
-              <Icon icon={Pencil} size={12} />
-            </button>
+            <Tooltip label="Edit branch name">
+              <button
+                className="text-text-secondary hover:bg-elevated rounded-sm px-3 py-2 text-sm"
+                onClick={() => setEditingBranch(true)}
+              >
+                <Icon icon={Pencil} size={12} />
+              </button>
+            </Tooltip>
           </div>
           {!branchValid.ok && (
             <span className="text-destructive text-xs">Invalid branch name.</span>

@@ -4,6 +4,7 @@ import { Icon } from "../icons/Icon";
 import { cn } from "../lib/cn";
 import { useWorktrees, worktreeId } from "../state/worktrees";
 import { useRailWidth } from "./useRailWidth";
+import { Tooltip } from "../ui";
 
 export function Rail(): React.JSX.Element {
   const { collapsed, isDragging, toggleCollapsed, startDrag } = useRailWidth();
@@ -43,13 +44,14 @@ export function Rail(): React.JSX.Element {
         })}
       </div>
       <div className="border-border-subtle flex justify-end border-t p-2">
-        <button
-          className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150"
-          onClick={() => toggleCollapsed()}
-          title={collapsed ? "Expand" : "Collapse"}
-        >
-          <Icon icon={collapsed ? ChevronRight : ChevronLeft} size={14} />
-        </button>
+        <Tooltip label={collapsed ? "Expand" : "Collapse"}>
+          <button
+            className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150"
+            onClick={() => toggleCollapsed()}
+          >
+            <Icon icon={collapsed ? ChevronRight : ChevronLeft} size={14} />
+          </button>
+        </Tooltip>
       </div>
       <div
         role="separator"

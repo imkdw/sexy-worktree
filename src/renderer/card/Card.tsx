@@ -9,6 +9,7 @@ import type { ShortcutAction } from "../shortcuts/shortcutMap";
 import { paneFocusNeighbour } from "@shared/paneNav";
 import { findLeafIds } from "@shared/paneOps";
 import { cn } from "../lib/cn";
+import { Tooltip } from "../ui";
 
 type CardProps = {
   repoId: number;
@@ -124,36 +125,39 @@ export function Card({
           {branch}
         </span>
         <div className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-          <button
-            className="text-text-muted hover:text-accent inline-flex h-6 w-6 items-center justify-center rounded-sm"
-            title="Split Vertical (⌘D)"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleSplit("vertical");
-            }}
-          >
-            <Icon icon={SplitSquareVertical} size={14} />
-          </button>
-          <button
-            className="text-text-muted hover:text-accent inline-flex h-6 w-6 items-center justify-center rounded-sm"
-            title="Split Horizontal (⌘⇧D)"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleSplit("horizontal");
-            }}
-          >
-            <Icon icon={SplitSquareHorizontal} size={14} />
-          </button>
-          <button
-            className="text-text-muted hover:text-accent inline-flex h-6 w-6 items-center justify-center rounded-sm"
-            title="Close pane (⌘W)"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClose();
-            }}
-          >
-            <Icon icon={X} size={14} />
-          </button>
+          <Tooltip label="Split Vertical (⌘D)">
+            <button
+              className="text-text-muted hover:text-accent inline-flex h-6 w-6 items-center justify-center rounded-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSplit("vertical");
+              }}
+            >
+              <Icon icon={SplitSquareVertical} size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Split Horizontal (⌘⇧D)">
+            <button
+              className="text-text-muted hover:text-accent inline-flex h-6 w-6 items-center justify-center rounded-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSplit("horizontal");
+              }}
+            >
+              <Icon icon={SplitSquareHorizontal} size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip label="Close pane (⌘W)">
+            <button
+              className="text-text-muted hover:text-accent inline-flex h-6 w-6 items-center justify-center rounded-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClose();
+              }}
+            >
+              <Icon icon={X} size={14} />
+            </button>
+          </Tooltip>
         </div>
       </header>
       <div className="bg-background flex min-h-0 flex-1">
