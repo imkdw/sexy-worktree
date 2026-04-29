@@ -63,7 +63,7 @@
 /* Custom utilities */
 @utility grid-card-rows {
   grid-auto-rows: calc(
-    (100vh - var(--titlebar-h) - var(--tabbar-h) - var(--toolbar-h) - var(--statusbar-h)) / 2
+    (100vh - var(--titlebar-h) - var(--tabbar-h) - var(--toolbar-h)) / 2
   );
 }
 
@@ -113,7 +113,6 @@
   --titlebar-h: 36px;
   --tabbar-h: 36px;
   --toolbar-h: 44px;
-  --statusbar-h: 24px;
   --rail-w-default: 200px;
   --rail-w-min: 80px;
   --rail-w-max: 480px;

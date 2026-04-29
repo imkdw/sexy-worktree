@@ -3,7 +3,6 @@ import { TabBar } from "./chrome/TabBar";
 import { TitleBar } from "./chrome/TitleBar";
 import { Toolbar } from "./chrome/Toolbar";
 import { Rail } from "./chrome/Rail";
-import { StatusBar } from "./chrome/StatusBar";
 import { ReposProvider, useRepos } from "./state/repos";
 import { WorktreesProvider, useWorktrees } from "./state/worktrees";
 import { ModeProvider, useMode } from "./state/mode";
@@ -67,7 +66,6 @@ function Shell(): React.JSX.Element {
           {!activeRepoId ? <NoRepo /> : mode === "overview" ? <Grid /> : <Focus />}
         </main>
       </div>
-      <StatusBar />
       <ToastLayer />
       <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <NewWorktreeModal open={modalOpen} onClose={() => setModalOpen(false)} />
