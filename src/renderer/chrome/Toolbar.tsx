@@ -1,7 +1,7 @@
 import { LayoutGrid, Maximize2, Plus, CheckSquare } from "lucide-react";
 import { Icon } from "../icons/Icon";
-import { cn } from "../lib/cn";
 import { useSelectMode } from "../state/selectMode";
+import { Tooltip, ToggleGroup, Toggle } from "../ui";
 
 type Mode = "overview" | "focus";
 
@@ -28,43 +28,39 @@ export function Toolbar({
         <span className="text-text-secondary">· {worktreeCount} worktrees</span>
       </div>
       <div className="flex items-center gap-2">
-        <button
-          className={cn(
-            "text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150",
-            sm.active && "bg-elevated text-text-primary"
-          )}
-          onClick={() => (sm.active ? sm.exit() : sm.enter())}
-          title="Select worktrees"
+        <Tooltip label="Select worktrees">
+          <Toggle
+            pressed={sm.active}
+            onPressedChange={(p) => (p ? sm.enter() : sm.exit())}
+            aria-label="Select worktrees"
+          >
+            <Icon icon={CheckSquare} />
+          </Toggle>
+        </Tooltip>
+        <ToggleGroup.Root
+          type="single"
+          value={mode}
+          onValueChange={(v) => v && onModeChange?.(v as Mode)}
         >
-          <Icon icon={CheckSquare} />
-        </button>
-        <button
-          className={cn(
-            "text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150",
-            mode === "overview" && "bg-elevated text-text-primary"
-          )}
-          onClick={() => onModeChange?.("overview")}
-          title="Overview (⌘.)"
-        >
-          <Icon icon={LayoutGrid} />
-        </button>
-        <button
-          className={cn(
-            "text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150",
-            mode === "focus" && "bg-elevated text-text-primary"
-          )}
-          onClick={() => onModeChange?.("focus")}
-          title="Focus (⌘.)"
-        >
-          <Icon icon={Maximize2} />
-        </button>
-        <button
-          className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150"
-          onClick={onNewWorktree}
-          title="New Worktree (⌘N)"
-        >
-          <Icon icon={Plus} />
-        </button>
+          <Tooltip label="Overview (⌘.)">
+            <ToggleGroup.Item value="overview" aria-label="Overview">
+              <Icon icon={LayoutGrid} />
+            </ToggleGroup.Item>
+          </Tooltip>
+          <Tooltip label="Focus (⌘.)">
+            <ToggleGroup.Item value="focus" aria-label="Focus">
+              <Icon icon={Maximize2} />
+            </ToggleGroup.Item>
+          </Tooltip>
+        </ToggleGroup.Root>
+        <Tooltip label="New Worktree (⌘N)">
+          <button
+            className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150"
+            onClick={onNewWorktree}
+          >
+            <Icon icon={Plus} />
+          </button>
+        </Tooltip>
       </div>
     </div>
   );
