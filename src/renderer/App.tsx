@@ -18,6 +18,7 @@ import { TerminalSessionsProvider } from "./state/terminalSessions";
 import { ToastLayer } from "./toast/Toast";
 import { NoRepo } from "./empty/NoRepo";
 import { Settings } from "./settings/Settings";
+import { TooltipProvider } from "./ui";
 
 function Shell(): React.JSX.Element {
   const { mode, setMode } = useMode();
@@ -76,20 +77,22 @@ function Shell(): React.JSX.Element {
 
 export function App(): React.JSX.Element {
   return (
-    <ToastProvider>
-      <ReposProvider>
-        <WorktreesProvider>
-          <TerminalSessionsProvider>
-            <NewWorktreeProvider>
-              <SelectModeProvider>
-                <ModeProvider>
-                  <Shell />
-                </ModeProvider>
-              </SelectModeProvider>
-            </NewWorktreeProvider>
-          </TerminalSessionsProvider>
-        </WorktreesProvider>
-      </ReposProvider>
-    </ToastProvider>
+    <TooltipProvider delayDuration={300}>
+      <ToastProvider>
+        <ReposProvider>
+          <WorktreesProvider>
+            <TerminalSessionsProvider>
+              <NewWorktreeProvider>
+                <SelectModeProvider>
+                  <ModeProvider>
+                    <Shell />
+                  </ModeProvider>
+                </SelectModeProvider>
+              </NewWorktreeProvider>
+            </TerminalSessionsProvider>
+          </WorktreesProvider>
+        </ReposProvider>
+      </ToastProvider>
+    </TooltipProvider>
   );
 }
