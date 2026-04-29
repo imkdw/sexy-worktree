@@ -5,7 +5,7 @@ import { api } from "../ipc/api";
 import { useRepos } from "../state/repos";
 import { PreflightNotice } from "./PreflightNotice";
 import { validateBranchName } from "@shared/branchValidation";
-import { Tooltip } from "../ui";
+import { Tooltip, Label } from "../ui";
 
 type Props = {
   busy: boolean;
@@ -82,11 +82,10 @@ export function JiraTab({
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-text-muted text-xs tracking-[0.04em] uppercase">
-        Jira Ticket (URL or ID)
-      </span>
+      <Label htmlFor="jira-ticket">Jira Ticket (URL or ID)</Label>
       <div style={{ display: "flex", gap: "var(--spacing-2)" }}>
         <input
+          id="jira-ticket"
           className="border-border-strong bg-elevated text-text-primary focus:border-accent focus:outline-accent-soft rounded-md border px-3 py-2 font-mono text-base focus:outline-2"
           placeholder="https://x.atlassian.net/browse/PROJ-123"
           value={ticketInput}
@@ -104,11 +103,10 @@ export function JiraTab({
       {resolveError && <span className="text-destructive text-xs">{resolveError}</span>}
       {resolved && (
         <>
-          <span className="text-text-muted text-xs tracking-[0.04em] uppercase">
-            Branch Preview
-          </span>
+          <Label htmlFor="jira-branch">Branch Preview</Label>
           <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-2)" }}>
             <input
+              id="jira-branch"
               className="border-border-strong bg-elevated text-text-primary focus:border-accent focus:outline-accent-soft rounded-md border px-3 py-2 font-mono text-base focus:outline-2"
               value={branchValue}
               readOnly={!editingBranch}

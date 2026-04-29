@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dialog } from "../ui";
+import { Dialog, Label } from "../ui";
 import { cn } from "../lib/cn";
 import { api } from "../ipc/api";
 import { useRepos } from "../state/repos";
@@ -66,8 +66,9 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          <span className="text-text-muted text-xs tracking-[0.04em] uppercase">API Token</span>
+          <Label htmlFor="settings-token">API Token</Label>
           <input
+            id="settings-token"
             className="border-border-strong bg-elevated text-text-primary focus:border-accent focus:outline-accent-soft rounded-md border px-3 py-2 font-mono text-base focus:outline-2"
             type="password"
             value={token}

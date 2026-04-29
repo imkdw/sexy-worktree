@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { validateBranchName } from "@shared/branchValidation";
+import { Label } from "../ui";
 
 type Props = {
   requireJiraPattern: boolean;
@@ -25,8 +26,9 @@ export function DirectTab({ requireJiraPattern, busy, onSubmit }: Props): React.
         if (v.ok) void onSubmit(branch);
       }}
     >
-      <span className="text-text-muted text-xs tracking-[0.04em] uppercase">Branch Name</span>
+      <Label htmlFor="direct-branch">Branch Name</Label>
       <input
+        id="direct-branch"
         className="border-border-strong bg-elevated text-text-primary focus:border-accent focus:outline-accent-soft rounded-md border px-3 py-2 font-mono text-base focus:outline-2"
         placeholder={requireJiraPattern ? "PROJ-123-feat-add-search" : "feat-add-search"}
         value={branch}
