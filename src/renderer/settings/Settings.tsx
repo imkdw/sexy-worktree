@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
-import { Icon } from "../icons/Icon";
+import { Dialog } from "../ui";
 import { cn } from "../lib/cn";
 import { api } from "../ipc/api";
 import { useRepos } from "../state/repos";
@@ -28,7 +27,7 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
     })();
   }, [open, repo]);
 
-  if (!open || !repo) return null;
+  if (!repo) return null;
 
   async function save(): Promise<void> {
     if (!tokenKey || !token) return;
@@ -54,20 +53,12 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="w-modal-wide border-border-subtle bg-surface flex max-w-[95vw] flex-col gap-4 rounded-lg border p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between">
-          <span className="text-text-primary text-lg font-semibold">Settings · Jira</span>
-          <button onClick={onClose}>
-            <Icon icon={X} size={16} />
-          </button>
-        </div>
+    <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
+      <Dialog.Content size="wide">
+        <Dialog.Header>
+          <Dialog.Title>Settings · Jira</Dialog.Title>
+          <Dialog.Close />
+        </Dialog.Header>
         <div className="flex flex-col gap-2">
           <span className="text-text-muted text-xs tracking-[0.04em] uppercase">Status</span>
           <div className={cn("text-sm", tokenPresent ? "text-success" : "text-destructive")}>
@@ -84,7 +75,7 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
             placeholder="ATATT…"
           />
         </div>
-        <div className="flex justify-end gap-3">
+        <Dialog.Footer>
           {tokenPresent && (
             <button
               className="text-text-secondary hover:bg-elevated rounded-sm px-3 py-2 text-sm"
@@ -100,8 +91,8 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
           >
             Save
           </button>
-        </div>
-      </div>
-    </div>
+        </Dialog.Footer>
+      </Dialog.Content>
+    </Dialog.Root>
   );
 }
