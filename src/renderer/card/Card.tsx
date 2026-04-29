@@ -113,8 +113,25 @@ export function Card({
     active && !selected && "border-accent-soft"
   );
 
+  function handleKeyDown(e: React.KeyboardEvent<HTMLElement>): void {
+    if (!selectable) return;
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      sm.toggle(cwd);
+    }
+  }
+
   return (
-    <section className={cardClass} onClick={handleClick}>
+    <section
+      className={cardClass}
+      onClick={handleClick}
+      {...(selectable && {
+        role: "checkbox",
+        "aria-checked": isSelected,
+        tabIndex: 0,
+        onKeyDown: handleKeyDown,
+      })}
+    >
       {sm.active && !isMain && (
         <div className="text-accent pointer-events-none absolute top-2 right-2 z-10">
           <Icon icon={isSelected ? Check : Square} size={14} />
