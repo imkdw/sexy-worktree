@@ -234,16 +234,16 @@ Only **In progress** and **Failed** break the 1px hairline rule. PTY crash uses 
 
 ### 6-8. Scrollbar
 
-스크롤바는 두 정책 중 하나를 따른다.
+Scrollbars follow one of two policies.
 
-| 영역                         | 정책         | 표현                                       |
-| ---------------------------- | ------------ | ------------------------------------------ |
-| Chrome (메인, Rail, 모달 등) | 완전 숨김    | 스크롤은 휠/트랙패드로만. 시각 노이즈 제거 |
-| 터미널 (xterm)               | hover-reveal | 평소 투명, viewport hover 시 thumb 만 노출 |
+| Area                                     | Policy        | Expression                                                                |
+| ---------------------------------------- | ------------- | ------------------------------------------------------------------------- |
+| Chrome (main area, Rail, modals, etc.)   | Fully hidden  | Scroll only via wheel/trackpad. Removes visual noise.                     |
+| Terminal (xterm)                         | hover-reveal  | Transparent by default; thumb only appears on viewport hover.             |
 
-- Chrome 영역에 새 `overflow-*` 컨테이너를 만들 때 `scrollbar-hidden` utility 를 반드시 함께 적용한다.
-- 터미널 thumb 색은 `--color-border-strong`, width 8px, radius full. 트랙은 항상 transparent.
-- 두 정책 외의 스크롤바 표현(예: 자체 색 입힌 항상 보이는 스크롤바)은 금지.
+- When creating a new `overflow-*` container in Chrome areas, you must apply the `scrollbar-hidden` utility alongside it.
+- Terminal thumb color is `--color-border-strong`, width 8px, radius full. The track is always transparent.
+- Any scrollbar expression outside these two policies (e.g. a custom-colored, always-visible scrollbar) is forbidden.
 
 ## 7. State conventions
 
@@ -282,19 +282,20 @@ These are auto-reject in code review:
 - `--color-accent` appearing 3+ times on a single screen (matches §2-4).
 - `backdrop-blur` outside of modals or full overlays.
 - Mixing in a sans-serif font (everything is `JetBrains Mono`).
-- Tailwind 임의값(`p-[7px]`, `bg-[#ff0000]`) 사용 — ESLint이 차단합니다.
-- 인라인 `style` 안에서 hex 하드코딩 — 반드시 `var(--color-…)` 또는 `cssVar()` 헬퍼를 사용.
-- OS 기본 스크롤바를 그대로 노출 (`overflow-auto` / `overflow-y-auto` 만 쓰고 `scrollbar-hidden` utility 누락).
+- Tailwind arbitrary values (`p-[7px]`, `bg-[#ff0000]`) — ESLint blocks these.
+- Hard-coded hex inside inline `style` — always use `var(--color-…)` or the `cssVar()` helper.
+- Exposing the OS default scrollbar (using `overflow-auto` / `overflow-y-auto` without the `scrollbar-hidden` utility).
 
 ## 10. Decision log
 
 > New decisions go on top (reverse-chronological). One line: **decision** — _why_.
 
-- **2026-04-28 — Rail 폭 드래그 리사이즈 도입.** 기본 200px / 범위 80~480px / localStorage 영속화. 기존 collapse 버튼 공존. 첫 UI preference 영속화 케이스 — 단일 값이라 SQLite/IPC 대신 localStorage 채택. 일반화는 두 번째 케이스에서 검토.
-- **2026-04-28 — Chrome 영역 스크롤바 완전 숨김, 터미널만 hover-reveal.** 트랙패드/휠로 스크롤이 충분하고, OS 기본 스크롤바가 다크 팔레트와 충돌해 시각 노이즈만 됨. 터미널은 출력 위치 인지 큐가 필요해서 hover-reveal 로 절충. utility(`scrollbar-hidden`, `scrollbar-terminal`) 로 등록해 token-driven 철학과 ESLint 정책에 부합시킴.
-- **2026-04-27 — Tailwind v4 도입, tokens.css 제거. @theme 단일 소스.** 토큰 이름을 v4 prefix 컨벤션으로 정렬(예: `--color-background` 로 이전 등). `--color-base` 는 `text-base` 글꼴 크기 utility 와 충돌해서 `--color-background` 로 변경. 클래스 기반 DX 확보 + ESLint 강제로 토큰 우회를 코드 레벨에서 차단.
-- **2026-04-27 — ESLint·Prettier 도입.** `eslint-plugin-better-tailwindcss` 로 임의값 차단, `no-restricted-syntax` 로 hex 하드코딩 차단, `prettier-plugin-tailwindcss` 로 클래스 자동 정렬.
-- **2026-04-26 — Card state borders unified: in-progress (amber) and failed (red) use 2px dashed.** Same dashed treatment binds "임시/비정상 진행" states under one visual metaphor; PTY crash keeps the default 1px because the crash is informational, not an active state. Replaces the prior "skeleton-only" exception.
+- **2026-04-28 — Adopted Radix Primitives (Dialog, Tabs, Tooltip, ToggleGroup, Toggle, Label).** Take headless behavior and a11y only; styling stays on our tokens. Wrappers live in `src/renderer/ui/`. Z-index policy: Dialog Overlay/Content `z-[1000]`, Tooltip `z-[1500]`, Toast `z-[2000]`. Replaces the hand-rolled modal backdrop / `stopPropagation` pattern — Esc, focus trap, and `aria-modal` come for free. Toast / ScrollArea / TabBar (repo tabs) intentionally OUT (policy clashes or wrong model fit).
+- **2026-04-28 — Drag-to-resize Rail width.** Default 200px / range 80~480px / persisted to localStorage. Coexists with the existing collapse button. First UI-preference persistence case — single value, so localStorage instead of SQLite/IPC. Revisit generalization on the second case.
+- **2026-04-28 — Chrome scrollbars fully hidden, terminal only is hover-reveal.** Trackpad/wheel scrolling is enough, and the OS default scrollbar clashes with the dark palette and adds only visual noise. Terminal needs an output-position cue, so hover-reveal is the compromise. Registered as utilities (`scrollbar-hidden`, `scrollbar-terminal`) to fit the token-driven philosophy and ESLint policy.
+- **2026-04-27 — Adopted Tailwind v4, removed tokens.css. @theme is the single source.** Aligned token names to the v4 prefix convention (e.g. moved to `--color-background`). `--color-base` clashed with the `text-base` font-size utility, so it was renamed to `--color-background`. Secures class-based DX + ESLint enforcement to block token bypass at the code level.
+- **2026-04-27 — Adopted ESLint and Prettier.** `eslint-plugin-better-tailwindcss` blocks arbitrary values, `no-restricted-syntax` blocks hard-coded hex, `prettier-plugin-tailwindcss` auto-sorts classes.
+- **2026-04-26 — Card state borders unified: in-progress (amber) and failed (red) use 2px dashed.** Same dashed treatment binds "temporary / abnormal progress" states under one visual metaphor; PTY crash keeps the default 1px because the crash is informational, not an active state. Replaces the prior "skeleton-only" exception.
 - **2026-04-26 — Anti-pattern accent threshold reconciled to 3+.** §2-4 said 3+, §9 said 4+ — same number now everywhere, so the rule is unambiguous in code review.
 - **2026-04-26 — Host this document at repo root.** Better discoverability for AI coding tools (lives next to `CLAUDE.md`, `README.md`); `docs/` placement is for projects too large to surface design at top-level.
 - **2026-04-26 — Single font family (`JetBrains Mono`) for the entire app.** Sharpens the "terminal tool" identity, removes per-element sans-vs-mono ambiguity. Trade-off: hierarchy must rely on size/spacing instead of weight.
@@ -310,7 +311,7 @@ These are auto-reject in code review:
 ### Adding a new color or spacing token
 
 1. First confirm existing tokens cannot express it — they almost always can.
-2. If genuinely needed, add the token to `src/renderer/index.css` 의 `@theme` 블록. Tailwind v4 가 utility class 와 CSS 변수를 동시에 생성합니다. 그 다음 §Color tokens / §Spacing 표 갱신.
+2. If genuinely needed, add the token to the `@theme` block in `src/renderer/index.css`. Tailwind v4 generates the utility class and CSS variable simultaneously. Then update the §Color tokens / §Spacing table.
 3. Add a one-line entry to §Decision log explaining the new token.
 
 ### Adding a new component pattern
