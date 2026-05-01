@@ -55,11 +55,7 @@ type SessionsCtxValue = {
 
 const SessionsCtx = createContext<SessionsCtxValue | null>(null);
 
-export function TerminalSessionsProvider({
-  children,
-}: {
-  children: ReactNode;
-}): React.JSX.Element {
+export function TerminalSessionsProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const { repos } = useRepos();
   const { worktreesByRepo } = useWorktrees();
 
@@ -108,14 +104,17 @@ export function TerminalSessionsProvider({
     [triggerRender]
   );
 
-  const disposeLeaf = useCallback((repoId: number, worktreePath: string, leafId: string): void => {
-    const key = lkey(repoId, worktreePath, leafId);
-    const entry = entriesRef.current.get(key);
-    if (entry) disposeLeafEntry(entry);
-    entriesRef.current.delete(key);
-    exitInfoRef.current.delete(key);
-    triggerRender();
-  }, [triggerRender]);
+  const disposeLeaf = useCallback(
+    (repoId: number, worktreePath: string, leafId: string): void => {
+      const key = lkey(repoId, worktreePath, leafId);
+      const entry = entriesRef.current.get(key);
+      if (entry) disposeLeafEntry(entry);
+      entriesRef.current.delete(key);
+      exitInfoRef.current.delete(key);
+      triggerRender();
+    },
+    [triggerRender]
+  );
 
   const disposeWorktree = useCallback(
     (repoId: number, worktreePath: string): void => {
@@ -235,7 +234,9 @@ export function TerminalSessionsProvider({
       const wk = wkey(repoId, worktreePath);
       const tree = paneTreesRef.current.get(wk);
       if (!tree) return;
+      if (findLeafIds(tree).length <= 1) return;
       const next = closeLeaf(tree, leafId);
+      if (!next) return;
       setTreeAndDiff(repoId, worktreePath, next);
       scheduleSave(repoId, worktreePath);
     },
@@ -243,12 +244,7 @@ export function TerminalSessionsProvider({
   );
 
   const resizeImpl = useCallback(
-    (
-      repoId: number,
-      worktreePath: string,
-      path: number[],
-      sizes: [number, number]
-    ): void => {
+    (repoId: number, worktreePath: string, path: number[], sizes: [number, number]): void => {
       const wk = wkey(repoId, worktreePath);
       const tree = paneTreesRef.current.get(wk);
       if (!tree) return;
@@ -405,14 +401,7 @@ export function TerminalSessionsProvider({
         },
       };
     },
-    [
-      splitImpl,
-      closePaneImpl,
-      resizeImpl,
-      newPaneImpl,
-      updateLeafCommandInternal,
-      restartImpl,
-    ]
+    [splitImpl, closePaneImpl, resizeImpl, newPaneImpl, updateLeafCommandInternal, restartImpl]
   );
 
   return <SessionsCtx.Provider value={{ getOps }}>{children}</SessionsCtx.Provider>;
