@@ -158,7 +158,7 @@ function LeafSlot({
         </div>
       )}
       <div className="relative flex h-full min-h-0 flex-1 flex-col">
-        <div ref={placeholderRef} className="bg-background h-full w-full flex-1 p-2" />
+        <div ref={placeholderRef} className="bg-terminal-bg h-full w-full flex-1 p-2" />
         {exit?.kind === "exited" && (
           <ExitedBanner
             code={exit.code}

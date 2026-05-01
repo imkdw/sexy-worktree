@@ -8,24 +8,28 @@
      NOTE: --color-background (NOT --color-base) — `--color-base` would collide
      with `--text-base` (13px font-size) since v4's `text-{name}` looks up both
      namespaces. */
-  --color-background: #09090b;
-  --color-surface: #18181b;
-  --color-elevated: #27272a;
-  --color-border-subtle: #27272a;
-  --color-border-strong: #3f3f46;
+  --color-background: #2b2b2b;
+  --color-surface: #3c3f41;
+  --color-elevated: #4e5254;
+  --color-border-subtle: #323232;
+  --color-border-strong: #555555;
 
   /* Text */
-  --color-text-primary: #fafafa;
-  --color-text-secondary: #d4d4d8;
-  --color-text-muted: #71717a;
-  --color-text-faint: #52525b;
+  --color-text-primary: #dfe1e5;
+  --color-text-secondary: #bbbbbb;
+  --color-text-muted: #808080;
+  --color-text-faint: #5c6164;
 
   /* Semantic */
-  --color-accent: #22d3ee;
-  --color-accent-soft: rgba(34, 211, 238, 0.3);
+  --color-accent: #4b6eaf;
+  --color-accent-soft: rgba(75, 110, 175, 0.3);
   --color-in-progress: #fbbf24;
   --color-success: #34d399;
   --color-destructive: #f87171;
+
+  /* Terminal — separate from --color-background because the terminal stays
+     pure black even after chrome flips to Darcula warm gray. */
+  --color-terminal-bg: #000000;
 
   /* Typography */
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;

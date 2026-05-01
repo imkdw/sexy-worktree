@@ -129,7 +129,7 @@ export function Card({
           </Tooltip>
         </div>
       </header>
-      <div className="bg-background flex min-h-0 flex-1">
+      <div className="bg-terminal-bg flex min-h-0 flex-1">
         {ops.tree ? (
           <PaneTree
             tree={ops.tree}

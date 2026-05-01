@@ -33,7 +33,7 @@ export function createLeafEntry(): LeafEntry {
     lineHeight: 1.3,
     cursorBlink: true,
     theme: {
-      background: cssVar("--color-background"),
+      background: cssVar("--color-terminal-bg"),
       foreground: cssVar("--color-text-primary"),
       cursor: cssVar("--color-accent"),
       selectionBackground: cssVar("--color-accent-soft"),
