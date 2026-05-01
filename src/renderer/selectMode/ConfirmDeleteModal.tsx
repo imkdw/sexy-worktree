@@ -22,7 +22,7 @@ export function ConfirmDeleteModal({ open, onClose }: Props): React.JSX.Element 
       await api.worktree.remove({ repoPath: repo.path, worktreePath: t.path });
     }
     await refresh();
-    sm.exit();
+    sm.clear();
     onClose();
     toast.push({
       kind: "success",

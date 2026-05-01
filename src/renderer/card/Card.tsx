@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { SplitSquareVertical, SplitSquareHorizontal, X, Check, Square } from "lucide-react";
+import { SplitSquareVertical, SplitSquareHorizontal, X } from "lucide-react";
 import { Icon } from "../icons/Icon";
 import { PaneTree } from "./PaneTree";
-import { useSelectMode } from "../state/selectMode";
 import { useTerminalSessions } from "../state/terminalSessions";
 import { NoPane } from "../empty/NoPane";
 import type { ShortcutAction } from "../shortcuts/shortcutMap";
@@ -16,10 +15,7 @@ type CardProps = {
   branch: string;
   cwd: string;
   active: boolean;
-  isMain?: boolean;
   onActivate: () => void;
-  allIds?: string[];
-  lastSelectedId?: string | null;
 };
 
 /**
@@ -33,14 +29,9 @@ export function Card({
   branch,
   cwd,
   active,
-  isMain,
   onActivate,
-  allIds,
-  lastSelectedId,
 }: CardProps): React.JSX.Element {
   const ops = useTerminalSessions(repoId, cwd);
-  const sm = useSelectMode();
-  const isSelected = sm.selected.has(cwd);
   const [focusedId, setFocusedId] = useState<string | null>(null);
 
   // 트리가 처음 로드되거나 focusedId가 사라지면 첫 leaf로 초기화
@@ -66,7 +57,6 @@ export function Card({
   const handleClose = useCallback(() => {
     if (!focusedId) return;
     ops.closePane(focusedId);
-    // 새 focusedId는 위 useEffect가 처리
   }, [ops, focusedId]);
 
   const handleNewPane = useCallback(() => {
@@ -92,51 +82,13 @@ export function Card({
     return () => window.removeEventListener("app:card-action", handle as EventListener);
   }, [active, handleSplit, handleClose, ops.tree, focusedId]);
 
-  function handleClick(e: React.MouseEvent): void {
-    if (sm.active && !isMain) {
-      if (e.shiftKey && lastSelectedId && allIds) {
-        sm.toggleRange(lastSelectedId, cwd, allIds);
-      } else {
-        sm.toggle(cwd);
-      }
-    } else {
-      onActivate();
-    }
-  }
-
-  const selectable = sm.active && !isMain;
-  const selected = selectable && isSelected;
   const cardClass = cn(
     "group relative flex min-h-0 w-full flex-col overflow-hidden rounded-md border border-border-subtle bg-surface",
-    selectable && "cursor-pointer",
-    selected && "border-accent",
-    active && !selected && "border-accent-soft"
+    active && "border-accent-soft"
   );
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLElement>): void {
-    if (!selectable) return;
-    if (e.key === " " || e.key === "Enter") {
-      e.preventDefault();
-      sm.toggle(cwd);
-    }
-  }
-
   return (
-    <section
-      className={cardClass}
-      onClick={handleClick}
-      {...(selectable && {
-        role: "checkbox",
-        "aria-checked": isSelected,
-        tabIndex: 0,
-        onKeyDown: handleKeyDown,
-      })}
-    >
-      {sm.active && !isMain && (
-        <div className="text-accent pointer-events-none absolute top-2 right-2 z-10">
-          <Icon icon={isSelected ? Check : Square} size={14} />
-        </div>
-      )}
+    <section className={cardClass} onClick={onActivate}>
       <header className="border-border-subtle flex h-9 items-center justify-between border-b px-3">
         <span className="text-text-secondary overflow-hidden text-sm font-medium text-ellipsis whitespace-nowrap">
           {branch}

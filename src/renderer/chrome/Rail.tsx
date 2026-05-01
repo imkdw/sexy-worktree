@@ -1,8 +1,9 @@
 import { useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check } from "lucide-react";
 import { Icon } from "../icons/Icon";
 import { cn } from "../lib/cn";
 import { useWorktrees, worktreeId } from "../state/worktrees";
+import { useSelectMode } from "../state/selectMode";
 import { useRailWidth } from "./useRailWidth";
 import { Tooltip } from "../ui";
 
@@ -10,6 +11,24 @@ export function Rail(): React.JSX.Element {
   const { collapsed, isDragging, toggleCollapsed, startDrag } = useRailWidth();
   const asideRef = useRef<HTMLElement>(null);
   const { worktrees, activeId, setActive } = useWorktrees();
+  const sm = useSelectMode();
+  const selectableIds = worktrees.filter((w) => !w.isMain).map((w) => w.path);
+
+  function handleCheckboxClick(e: React.MouseEvent, id: string): void {
+    e.stopPropagation();
+    if (e.shiftKey) sm.toggleRangeTo(id, selectableIds);
+    else sm.toggle(id);
+  }
+
+  function handleCheckboxKey(e: React.KeyboardEvent, id: string): void {
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.shiftKey) sm.toggleRangeTo(id, selectableIds);
+      else sm.toggle(id);
+    }
+  }
+
   return (
     <aside
       ref={asideRef}
@@ -23,6 +42,8 @@ export function Rail(): React.JSX.Element {
         {worktrees.map((wt) => {
           const id = worktreeId(wt);
           const active = id === activeId;
+          const isSelected = sm.selected.has(id);
+          const showCheckbox = !collapsed && !wt.isMain;
           return (
             <div
               key={id}
@@ -32,6 +53,26 @@ export function Rail(): React.JSX.Element {
               )}
               onClick={() => setActive(id)}
             >
+              {!collapsed &&
+                (showCheckbox ? (
+                  <span
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    aria-label={`Select ${wt.branch ?? wt.path}`}
+                    tabIndex={0}
+                    onClick={(e) => handleCheckboxClick(e, id)}
+                    onKeyDown={(e) => handleCheckboxKey(e, id)}
+                    className={cn(
+                      "border-border-strong inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border transition-colors duration-150",
+                      isSelected && "border-accent bg-accent text-background"
+                    )}
+                  >
+                    {isSelected && <Icon icon={Check} size={10} />}
+                  </span>
+                ) : (
+                  // main 행: 정렬용 placeholder
+                  <span className="inline-block h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                ))}
               <span
                 className={cn(
                   "h-2 w-2 shrink-0 rounded-full",

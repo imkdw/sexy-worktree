@@ -18,6 +18,7 @@ import { ToastLayer } from "./toast/Toast";
 import { NoRepo } from "./empty/NoRepo";
 import { Settings } from "./settings/Settings";
 import { TooltipProvider } from "./ui";
+import { ConfirmDeleteModal } from "./selectMode/ConfirmDeleteModal";
 
 function Shell(): React.JSX.Element {
   const { mode, setMode } = useMode();
@@ -27,6 +28,7 @@ function Shell(): React.JSX.Element {
   const active = repos.find((r) => r.id === activeRepoId) ?? null;
   const [modalOpen, setModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
     const fn = (): void => setModalOpen(true);
@@ -41,8 +43,17 @@ function Shell(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
+    sm.clear();
+    // activeRepoId 변경 시에만 실행
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRepoId]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key === "Escape" && sm.active) sm.exit();
+      if (e.key !== "Escape" || sm.selected.size === 0) return;
+      // Radix Dialog 가 열려 있으면 모달이 Esc 를 먼저 처리하도록 양보
+      if (document.querySelector('[role="dialog"][data-state="open"]')) return;
+      sm.clear();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -59,6 +70,7 @@ function Shell(): React.JSX.Element {
         mode={mode}
         onModeChange={setMode}
         onNewWorktree={() => setModalOpen(true)}
+        onForceDelete={() => setConfirmDeleteOpen(true)}
       />
       <div className="flex min-h-0 flex-1">
         <Rail />
@@ -69,6 +81,7 @@ function Shell(): React.JSX.Element {
       <ToastLayer />
       <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <NewWorktreeModal open={modalOpen} onClose={() => setModalOpen(false)} />
+      <ConfirmDeleteModal open={confirmDeleteOpen} onClose={() => setConfirmDeleteOpen(false)} />
     </div>
   );
 }

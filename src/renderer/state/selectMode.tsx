@@ -1,26 +1,19 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 type State = {
-  active: boolean;
   selected: Set<string>;
-  enter: () => void;
-  exit: () => void;
+  lastToggledId: string | null;
   toggle: (id: string) => void;
-  toggleRange: (anchor: string, target: string, allIds: string[]) => void;
+  toggleRangeTo: (target: string, allIds: string[]) => void;
   clear: () => void;
 };
 
 const Ctx = createContext<State | null>(null);
 
 export function SelectModeProvider({ children }: { children: ReactNode }): React.JSX.Element {
-  const [active, setActive] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [lastToggledId, setLastToggledId] = useState<string | null>(null);
 
-  const enter = useCallback(() => setActive(true), []);
-  const exit = useCallback(() => {
-    setActive(false);
-    setSelected(new Set());
-  }, []);
   const toggle = useCallback((id: string) => {
     setSelected((s) => {
       const next = new Set(s);
@@ -28,23 +21,39 @@ export function SelectModeProvider({ children }: { children: ReactNode }): React
       else next.add(id);
       return next;
     });
+    setLastToggledId(id);
   }, []);
-  const toggleRange = useCallback((anchor: string, target: string, allIds: string[]) => {
-    const a = allIds.indexOf(anchor);
-    const b = allIds.indexOf(target);
-    if (a < 0 || b < 0) return;
-    const [lo, hi] = a < b ? [a, b] : [b, a];
-    const ids = allIds.slice(lo, hi + 1);
-    setSelected((s) => {
-      const next = new Set(s);
-      for (const id of ids) next.add(id);
-      return next;
+  const toggleRangeTo = useCallback((target: string, allIds: string[]) => {
+    setLastToggledId((anchor) => {
+      if (anchor === null) {
+        setSelected((s) => {
+          const next = new Set(s);
+          if (next.has(target)) next.delete(target);
+          else next.add(target);
+          return next;
+        });
+        return target;
+      }
+      const a = allIds.indexOf(anchor);
+      const b = allIds.indexOf(target);
+      if (a < 0 || b < 0) return anchor;
+      const [lo, hi] = a < b ? [a, b] : [b, a];
+      const ids = allIds.slice(lo, hi + 1);
+      setSelected((s) => {
+        const next = new Set(s);
+        for (const id of ids) next.add(id);
+        return next;
+      });
+      return target;
     });
   }, []);
-  const clear = useCallback(() => setSelected(new Set()), []);
+  const clear = useCallback(() => {
+    setSelected(new Set());
+    setLastToggledId(null);
+  }, []);
 
   return (
-    <Ctx.Provider value={{ active, selected, enter, exit, toggle, toggleRange, clear }}>
+    <Ctx.Provider value={{ selected, lastToggledId, toggle, toggleRangeTo, clear }}>
       {children}
     </Ctx.Provider>
   );

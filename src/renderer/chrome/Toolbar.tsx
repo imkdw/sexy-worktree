@@ -1,7 +1,9 @@
-import { LayoutGrid, Maximize2, Plus, CheckSquare } from "lucide-react";
+import { LayoutGrid, Maximize2, Plus, Trash2, X } from "lucide-react";
 import { Icon } from "../icons/Icon";
 import { useSelectMode } from "../state/selectMode";
-import { Tooltip, ToggleGroup, Toggle } from "../ui";
+import { useWorktrees } from "../state/worktrees";
+import { Tooltip, ToggleGroup } from "../ui";
+import { cn } from "../lib/cn";
 
 type Mode = "overview" | "focus";
 
@@ -11,6 +13,7 @@ type ToolbarProps = {
   mode: Mode;
   onModeChange?: (m: Mode) => void;
   onNewWorktree?: () => void;
+  onForceDelete?: () => void;
 };
 
 export function Toolbar({
@@ -19,24 +22,48 @@ export function Toolbar({
   mode,
   onModeChange,
   onNewWorktree,
+  onForceDelete,
 }: ToolbarProps): React.JSX.Element {
   const sm = useSelectMode();
+  const { worktrees } = useWorktrees();
+  const selectableCount = [...sm.selected].filter((id) => {
+    const wt = worktrees.find((w) => w.path === id);
+    return wt && !wt.isMain;
+  }).length;
   return (
     <div className="border-border-subtle bg-background flex h-[var(--toolbar-h)] items-center justify-between border-b px-4">
       <div className="text-text-muted flex items-center gap-3 text-sm">
         <span className="text-sm">{repoPath}</span>
         <span className="text-text-secondary">· {worktreeCount} worktrees</span>
+        {selectableCount > 0 && (
+          <>
+            <span className="text-text-secondary">·</span>
+            <span className="text-text-secondary text-sm">{selectableCount} selected</span>
+            <Tooltip label="Clear selection (Esc)">
+              <button
+                aria-label="Clear selection"
+                className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-6 w-6 items-center justify-center rounded-sm transition-colors duration-150"
+                onClick={() => sm.clear()}
+              >
+                <Icon icon={X} size={14} />
+              </button>
+            </Tooltip>
+            <Tooltip label="Force delete selected">
+              <button
+                aria-label="Force delete selected worktrees"
+                className={cn(
+                  "bg-destructive text-background inline-flex h-7 items-center gap-1 rounded-sm px-2 text-xs font-medium transition-opacity duration-150 hover:opacity-90"
+                )}
+                onClick={() => onForceDelete?.()}
+              >
+                <Icon icon={Trash2} size={14} />
+                Force Delete
+              </button>
+            </Tooltip>
+          </>
+        )}
       </div>
       <div className="flex items-center gap-2">
-        <Tooltip label="Select worktrees">
-          <Toggle
-            pressed={sm.active}
-            onPressedChange={(p) => (p ? sm.enter() : sm.exit())}
-            aria-label="Select worktrees"
-          >
-            <Icon icon={CheckSquare} />
-          </Toggle>
-        </Tooltip>
         <ToggleGroup.Root
           type="single"
           value={mode}
