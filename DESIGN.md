@@ -8,9 +8,9 @@
 
 The app's single promise is **"see all your terminal cards in one window at once."** Design must never get in the way of that promise.
 
-- **Warp + Linear hybrid.** Inside the cards (terminals) follows Warp: monospace restraint, dark surface layering. Outside the cards (tabs, rail, toolbar, modals) follows Linear: information density, restrained color, soft hover.
-- **Restraint first.** No more than 4-5 colors per screen. When the accent color appears, it must mean "this is active or important." If it appears everywhere, it means nothing.
-- **Distinctive, not a generic dev tool.** Avoid VS Code Dark+ and GitHub-dark palettes. Borrow Warp's cyan family to make the "terminal tool" identity unmistakable.
+- **Darcula chrome + black terminal.** Outside the cards (rail, toolbar, tabs, modals, card chrome) is Darcula-style warm dark gray — large layer-to-layer luminance gaps give compact terminal cards real visual structure. Inside the cards is pure black: the chrome ↔ terminal contrast is what makes the terminal area pop.
+- **Restraint first.** No more than 4-5 colors per screen. The accent appears only where "this is active or important".
+- **Distinctive through structure, not palette.** Identity comes from all-mono typography, the in-window terminal grid, and instant worktree CRUD — not from a unique color scheme. We adopt a proven IDE chrome (Darcula) precisely because it works for compact, dense, multi-pane interfaces.
 - **Dark only (MVP).** Light mode and system-follow are out of scope for the first release.
 
 ## 2. Color tokens
@@ -19,32 +19,33 @@ Dark only. Every token is named by **role (semantic)**, never by hue. Do not har
 
 ### 2-1. Surface (background layers)
 
-| Token                   | Value                | Tailwind               | Use                                |
-| ----------------------- | -------------------- | ---------------------- | ---------------------------------- |
-| `--color-background`    | `#09090B` (zinc-950) | `bg-background`        | Window background, grid background |
-| `--color-surface`       | `#18181B` (zinc-900) | `bg-surface`           | Cards, modals, rail row hover      |
-| `--color-elevated`      | `#27272A` (zinc-800) | `bg-elevated`          | Dropdowns, tooltips, input fields  |
-| `--color-border-subtle` | `#27272A` (zinc-800) | `border-border-subtle` | Card borders, dividers             |
-| `--color-border-strong` | `#3F3F46` (zinc-700) | `border-border-strong` | Input borders, emphasized dividers |
+| Token                   | Value     | Tailwind               | Use                                           |
+| ----------------------- | --------- | ---------------------- | --------------------------------------------- |
+| `--color-background`    | `#2B2B2B` | `bg-background`        | Window background, grid background            |
+| `--color-surface`       | `#3C3F41` | `bg-surface`           | Cards, modals, rail row hover                 |
+| `--color-elevated`      | `#4E5254` | `bg-elevated`          | Dropdowns, tooltips, input fields             |
+| `--color-border-subtle` | `#323232` | `border-border-subtle` | Card borders, dividers                        |
+| `--color-border-strong` | `#555555` | `border-border-strong` | Input borders, emphasized dividers            |
+| `--color-terminal-bg`   | `#000000` | `bg-terminal-bg`       | Terminal pane body, xterm.js theme background |
 
 ### 2-2. Text
 
-| Token                    | Value                | Tailwind              | Use                                      |
-| ------------------------ | -------------------- | --------------------- | ---------------------------------------- |
-| `--color-text-primary`   | `#FAFAFA` (zinc-50)  | `text-text-primary`   | Body, active tab, active worktree name   |
-| `--color-text-secondary` | `#D4D4D8` (zinc-300) | `text-text-secondary` | Card header (branch name), inactive tabs |
-| `--color-text-muted`     | `#71717A` (zinc-500) | `text-text-muted`     | Repo path, meta info, inactive icons     |
-| `--color-text-faint`     | `#52525B` (zinc-600) | `text-text-faint`     | Placeholder, weakest hint                |
+| Token                    | Value     | Tailwind              | Use                                      |
+| ------------------------ | --------- | --------------------- | ---------------------------------------- |
+| `--color-text-primary`   | `#DFE1E5` | `text-text-primary`   | Body, active tab, active worktree name   |
+| `--color-text-secondary` | `#BBBBBB` | `text-text-secondary` | Card header (branch name), inactive tabs |
+| `--color-text-muted`     | `#808080` | `text-text-muted`     | Repo path, meta info, inactive icons     |
+| `--color-text-faint`     | `#5C6164` | `text-text-faint`     | Placeholder, weakest hint                |
 
 ### 2-3. Semantic
 
-| Token                 | Value                    | Tailwind                                    | Use                                                           |
-| --------------------- | ------------------------ | ------------------------------------------- | ------------------------------------------------------------- |
-| `--color-accent`      | `#22D3EE` (cyan-400)     | `bg-accent`, `text-accent`, `border-accent` | Active indicator (dot), primary CTA, focus ring, hovered icon |
-| `--color-accent-soft` | `cyan-400 @ 30% opacity` | `border-accent-soft`                        | Active card border, outer focus ring                          |
-| `--color-in-progress` | `#FBBF24` (amber-400)    | `text-in-progress`, `border-in-progress`    | Skeleton card border, `Loader2` color, in-progress step       |
-| `--color-success`     | `#34D399` (emerald-400)  | `text-success`, `border-success`            | Completed step, success toast                                 |
-| `--color-destructive` | `#F87171` (red-400)      | `text-destructive`, `bg-destructive`        | Force Delete button, failed step, error toast                 |
+| Token                 | Value                        | Tailwind                                    | Use                                                           |
+| --------------------- | ---------------------------- | ------------------------------------------- | ------------------------------------------------------------- |
+| `--color-accent`      | `#4B6EAF` (Darcula blue)     | `bg-accent`, `text-accent`, `border-accent` | Active indicator (dot), primary CTA, focus ring, hovered icon |
+| `--color-accent-soft` | `Darcula blue @ 30% opacity` | `border-accent-soft`                        | Active card border, outer focus ring                          |
+| `--color-in-progress` | `#FBBF24` (amber-400)        | `text-in-progress`, `border-in-progress`    | Skeleton card border, `Loader2` color, in-progress step       |
+| `--color-success`     | `#34D399` (emerald-400)      | `text-success`, `border-success`            | Completed step, success toast                                 |
+| `--color-destructive` | `#F87171` (red-400)          | `text-destructive`, `bg-destructive`        | Force Delete button, failed step, error toast                 |
 
 ### 2-4. Accent usage rule
 
@@ -166,12 +167,12 @@ Common icon mapping:
   branch name (--font-mono, --color-text-secondary, --text-sm, weight-500)
                        [hover only] SplitV  SplitH  X (--color-text-muted)
 [ Body (terminal panes, Allotment split) ──────────────────────── ]
-  background: --color-background
+  background: --color-terminal-bg
   pane border: 1px --color-border-subtle
 ```
 
 - Card border: `1px --color-border-subtle` by default; active card uses `1px --color-accent-soft`.
-- No drop shadows on the card — the surface layering (zinc-900 over zinc-950) is enough lift.
+- No drop shadows on the card — the layer-to-layer luminance gap (#3C3F41 over #2B2B2B) is enough lift.
 - Header action group fades in on hover (150ms ease).
 
 ### 6-2. Tab (repo tab)
@@ -236,10 +237,10 @@ Only **In progress** and **Failed** break the 1px hairline rule. PTY crash uses 
 
 Scrollbars follow one of two policies.
 
-| Area                                     | Policy        | Expression                                                                |
-| ---------------------------------------- | ------------- | ------------------------------------------------------------------------- |
-| Chrome (main area, Rail, modals, etc.)   | Fully hidden  | Scroll only via wheel/trackpad. Removes visual noise.                     |
-| Terminal (xterm)                         | hover-reveal  | Transparent by default; thumb only appears on viewport hover.             |
+| Area                                   | Policy       | Expression                                                    |
+| -------------------------------------- | ------------ | ------------------------------------------------------------- |
+| Chrome (main area, Rail, modals, etc.) | Fully hidden | Scroll only via wheel/trackpad. Removes visual noise.         |
+| Terminal (xterm)                       | hover-reveal | Transparent by default; thumb only appears on viewport hover. |
 
 - When creating a new `overflow-*` container in Chrome areas, you must apply the `scrollbar-hidden` utility alongside it.
 - Terminal thumb color is `--color-border-strong`, width 8px, radius full. The track is always transparent.
@@ -290,6 +291,7 @@ These are auto-reject in code review:
 
 > New decisions go on top (reverse-chronological). One line: **decision** — _why_.
 
+- **2026-05-01 — Adopted Darcula-style chrome (#2B2B2B / #3C3F41) with Darcula Blue (#4B6EAF) accent; terminal interior stays #000000.** Replaces the zinc-950 chrome + cyan-400 accent. The zinc layering had too small a per-step luminance gap, so cards visually merged with the background and the grid structure was hard to read. Darcula's chrome → panel jump (#2B2B2B → #3C3F41) gives instant card structure, and keeping the terminal at #000 creates a strong chrome ↔ terminal contrast that makes the terminal area the primary visual focus. Trade-off: gives up §1's "avoid VS Code-style palette" stance — distinctiveness now anchors on all-mono typography + in-window terminal CRUD, not on a unique color identity. New token `--color-terminal-bg` (#000000) needed because the card body and `--color-background` no longer match. State colors (amber / emerald / red) intentionally unchanged — already learned signals, and they pop harder against warm gray than against near-black.
 - **2026-04-28 — Adopted Radix Primitives (Dialog, Tabs, Tooltip, ToggleGroup, Toggle, Label).** Take headless behavior and a11y only; styling stays on our tokens. Wrappers live in `src/renderer/ui/`. Z-index policy: Dialog Overlay/Content `z-[1000]`, Tooltip `z-[1500]`, Toast `z-[2000]`. Replaces the hand-rolled modal backdrop / `stopPropagation` pattern — Esc, focus trap, and `aria-modal` come for free. Toast / ScrollArea / TabBar (repo tabs) intentionally OUT (policy clashes or wrong model fit).
 - **2026-04-28 — Drag-to-resize Rail width.** Default 200px / range 80~480px / persisted to localStorage. Coexists with the existing collapse button. First UI-preference persistence case — single value, so localStorage instead of SQLite/IPC. Revisit generalization on the second case.
 - **2026-04-28 — Chrome scrollbars fully hidden, terminal only is hover-reveal.** Trackpad/wheel scrolling is enough, and the OS default scrollbar clashes with the dark palette and adds only visual noise. Terminal needs an output-position cue, so hover-reveal is the compromise. Registered as utilities (`scrollbar-hidden`, `scrollbar-terminal`) to fit the token-driven philosophy and ESLint policy.
