@@ -7,9 +7,8 @@ import type {
   NewWorktreeJobEvent,
 } from "@shared/ipc";
 
-type Invoker<C extends keyof IpcChannels> = IpcIn<C> extends void
-  ? () => Promise<IpcOut<C>>
-  : (input: IpcIn<C>) => Promise<IpcOut<C>>;
+type Invoker<C extends keyof IpcChannels> =
+  IpcIn<C> extends void ? () => Promise<IpcOut<C>> : (input: IpcIn<C>) => Promise<IpcOut<C>>;
 
 type Api = {
   repo: {
@@ -27,6 +26,7 @@ type Api = {
   config: {
     get: Invoker<"config:get">;
     saveJira: Invoker<"config:saveJira">;
+    saveRepository: Invoker<"config:saveRepository">;
   };
   pty: {
     spawn: Invoker<"pty:spawn">;

@@ -120,6 +120,13 @@ export type IpcChannels = {
     };
     out: Result<{ config: RepoConfigDto; configPath: string }, ConfigSaveError>;
   };
+  "config:saveRepository": {
+    in: {
+      repoPath: string;
+      config: RepoConfigDto;
+    };
+    out: Result<{ config: RepoConfigDto; configPath: string }, ConfigSaveError>;
+  };
   "pty:spawn": {
     in: PtySpawnArgs;
     out: Result<{ id: PtyId }, PtySpawnError>;

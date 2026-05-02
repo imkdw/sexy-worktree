@@ -8,9 +8,8 @@ import type {
   NewWorktreeJobEvent,
 } from "@shared/ipc";
 
-type Invoker<C extends keyof IpcChannels> = IpcIn<C> extends void
-  ? () => Promise<IpcOut<C>>
-  : (input: IpcIn<C>) => Promise<IpcOut<C>>;
+type Invoker<C extends keyof IpcChannels> =
+  IpcIn<C> extends void ? () => Promise<IpcOut<C>> : (input: IpcIn<C>) => Promise<IpcOut<C>>;
 
 function makeInvoker<C extends keyof IpcChannels>(channel: C): Invoker<C> {
   return ((input?: IpcIn<C>): Promise<IpcOut<C>> =>
@@ -33,6 +32,7 @@ const api = {
   config: {
     get: makeInvoker("config:get"),
     saveJira: makeInvoker("config:saveJira"),
+    saveRepository: makeInvoker("config:saveRepository"),
   },
   pty: {
     spawn: makeInvoker("pty:spawn"),
