@@ -13,7 +13,7 @@ declare global {
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 type ApiMock = typeof window.api;
-type SaveJiraResult = Ok<{ config: RepoConfigDto; configPath: string }>;
+type SaveRepositoryResult = Ok<{ config: RepoConfigDto; configPath: string }>;
 
 const repo: RepoRow = {
   id: 1,
@@ -22,7 +22,7 @@ const repo: RepoRow = {
   lastActiveAt: 1,
 };
 
-const jiraConfig: RepoConfigDto = {
+const repoConfig: RepoConfigDto = {
   version: 1,
   worktree: {
     baseDir: "../worktrees",
@@ -32,27 +32,21 @@ const jiraConfig: RepoConfigDto = {
     initCommands: [],
     defaultStartupCommand: "",
   },
+  branchValidation: { requireJiraPattern: true },
+};
+
+const jiraConfig: RepoConfigDto = {
+  ...repoConfig,
   jira: {
     enabled: true,
-    workspaceUrl: "https://example.atlassian.net",
-    email: "dev@example.com",
+    workspaceUrl: "https://pgmworks.atlassian.net",
+    email: "imkdw@pgmworks.com",
     tokenKeychainKey: "jira.repo",
   },
 };
 
-function makeConfigWithoutJira(): RepoConfigDto {
-  return {
-    version: jiraConfig.version,
-    worktree: {
-      ...jiraConfig.worktree,
-      filesToCopy: [...jiraConfig.worktree.filesToCopy],
-      initCommands: [...jiraConfig.worktree.initCommands],
-    },
-  };
-}
-
 function makeApi(overrides: Partial<ApiMock> = {}): ApiMock {
-  const api = {
+  return {
     repo: {
       openDialog: vi.fn(),
       validate: vi.fn(),
@@ -67,7 +61,8 @@ function makeApi(overrides: Partial<ApiMock> = {}): ApiMock {
     },
     config: {
       get: vi.fn().mockResolvedValue(ok({ config: jiraConfig, source: "file" as const })),
-      saveJira: vi.fn().mockResolvedValue(
+      saveJira: vi.fn(),
+      saveRepository: vi.fn().mockResolvedValue(
         ok({
           config: jiraConfig,
           configPath: "/repo/.sexyworktree/config.json",
@@ -106,8 +101,6 @@ function makeApi(overrides: Partial<ApiMock> = {}): ApiMock {
     },
     ...overrides,
   } satisfies ApiMock;
-
-  return api;
 }
 
 async function flush(): Promise<void> {
@@ -117,30 +110,41 @@ async function flush(): Promise<void> {
   });
 }
 
-async function setInput(selector: string, value: string): Promise<void> {
-  const input = document.querySelector<HTMLInputElement>(selector);
-  if (!input) throw new Error(`input not found: ${selector}`);
-
-  await act(async () => {
-    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-    if (!valueSetter) throw new Error("HTMLInputElement value setter not found");
-    valueSetter.call(input, value);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-}
-
-async function typeToken(value: string): Promise<void> {
-  await setInput("#settings-token", value);
-}
-
-async function clickButton(label: string): Promise<void> {
+function byTextButton(label: string): HTMLButtonElement {
   const button = [...document.querySelectorAll("button")].find(
     (el) => el.textContent?.trim() === label
   );
   if (!button) throw new Error(`button not found: ${label}`);
+  return button;
+}
+
+async function clickButton(label: string): Promise<void> {
+  const button = byTextButton(label);
 
   await act(async () => {
     button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+}
+
+async function setControl(selector: string, value: string): Promise<void> {
+  const control = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector);
+  if (!control) throw new Error(`control not found: ${selector}`);
+
+  await act(async () => {
+    const proto = control instanceof HTMLTextAreaElement ? HTMLTextAreaElement : HTMLInputElement;
+    const valueSetter = Object.getOwnPropertyDescriptor(proto.prototype, "value")?.set;
+    if (!valueSetter) throw new Error("value setter not found");
+    valueSetter.call(control, value);
+    control.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+async function clickCheckbox(selector: string): Promise<void> {
+  const checkbox = document.querySelector<HTMLInputElement>(selector);
+  if (!checkbox) throw new Error(`checkbox not found: ${selector}`);
+
+  await act(async () => {
+    checkbox.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
 }
 
@@ -196,7 +200,7 @@ async function mountSettings(
   };
 }
 
-describe("Settings Jira token save UX", () => {
+describe("Settings repository modal", () => {
   let cleanup: (() => void) | null = null;
 
   beforeEach(() => {
@@ -209,9 +213,169 @@ describe("Settings Jira token save UX", () => {
     vi.restoreAllMocks();
   });
 
-  it("creates repo Jira config, stores the token, and closes Settings after save", async () => {
-    let resolveConfigSave!: (value: SaveJiraResult) => void;
-    const saveConfigPromise = new Promise<SaveJiraResult>((resolve) => {
+  it("shows repository navigation and saves worktree fields as full config", async () => {
+    const api = makeApi({
+      secrets: {
+        get: vi.fn().mockResolvedValue(ok({ value: "stored-token" })),
+        set: vi.fn().mockResolvedValue(ok(undefined)),
+        remove: vi.fn().mockResolvedValue(ok(undefined)),
+      },
+    });
+    const mounted = await mountSettings(api);
+    cleanup = mounted.unmount;
+
+    expect(document.body.textContent).toContain("Settings · Repository");
+    expect(document.querySelector('nav[aria-label="Settings sections"]')).toBeTruthy();
+    expect(byTextButton("Paths").getAttribute("aria-current")).toBe("page");
+
+    await clickButton("Bootstrap");
+    expect(byTextButton("Bootstrap").getAttribute("aria-current")).toBe("page");
+    await setControl("#settings-worktree-files-to-copy", ".env.local\n.npmrc");
+    await setControl("#settings-worktree-init-commands", "pnpm install\npnpm build");
+    await clickButton("Save");
+    await flush();
+
+    expect(api.config.saveRepository).toHaveBeenCalledWith({
+      repoPath: "/repo",
+      config: expect.objectContaining({
+        version: 1,
+        branchValidation: { requireJiraPattern: true },
+        worktree: expect.objectContaining({
+          filesToCopy: [".env.local", ".npmrc"],
+          initCommands: ["pnpm install", "pnpm build"],
+        }),
+      }),
+    });
+    expect(api.config.saveJira).not.toHaveBeenCalled();
+    expect(mounted.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables Jira fields when Enable Jira is off but preserves connection values in config", async () => {
+    const api = makeApi();
+    await mountSettings(api).then((mounted) => {
+      cleanup = mounted.unmount;
+    });
+
+    await clickButton("Connection");
+    await clickCheckbox("#settings-jira-enabled");
+
+    expect(document.querySelector<HTMLInputElement>("#settings-jira-workspace-url")?.disabled).toBe(
+      true
+    );
+
+    await clickButton("Save");
+    await flush();
+
+    expect(api.config.saveRepository).toHaveBeenCalledWith({
+      repoPath: "/repo",
+      config: expect.objectContaining({
+        jira: expect.objectContaining({
+          enabled: false,
+          workspaceUrl: "https://pgmworks.atlassian.net",
+          email: "imkdw@pgmworks.com",
+          tokenKeychainKey: "jira.repo",
+        }),
+      }),
+    });
+  });
+
+  it("saves disabled Jira when a connection field was cleared before disabling", async () => {
+    const api = makeApi();
+    const mounted = await mountSettings(api);
+    cleanup = mounted.unmount;
+
+    await clickButton("Connection");
+    await setControl("#settings-jira-workspace-url", "");
+    await clickCheckbox("#settings-jira-enabled");
+    await clickButton("Save");
+    await flush();
+
+    expect(api.config.saveRepository).toHaveBeenCalledWith({
+      repoPath: "/repo",
+      config: expect.objectContaining({
+        jira: {
+          enabled: false,
+          workspaceUrl: "",
+          email: "imkdw@pgmworks.com",
+          tokenKeychainKey: "jira.repo",
+        },
+      }),
+    });
+    expect(mounted.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("saves disabled Jira from a partial new Jira form without requiring connection validation", async () => {
+    const api = makeApi({
+      config: {
+        get: vi.fn().mockResolvedValue(ok({ config: repoConfig, source: "defaults" as const })),
+        saveJira: vi.fn(),
+        saveRepository: vi.fn().mockResolvedValue(
+          ok({
+            config: repoConfig,
+            configPath: "/repo/.sexyworktree/config.json",
+          })
+        ),
+      },
+    });
+    const mounted = await mountSettings(api);
+    cleanup = mounted.unmount;
+
+    await clickButton("Connection");
+    await clickCheckbox("#settings-jira-enabled");
+    await setControl("#settings-jira-workspace-url", "https://example.atlassian.net");
+    await clickCheckbox("#settings-jira-enabled");
+    await clickButton("Save");
+    await flush();
+
+    expect(api.config.saveRepository).toHaveBeenCalledWith({
+      repoPath: "/repo",
+      config: expect.objectContaining({
+        jira: {
+          enabled: false,
+          workspaceUrl: "https://example.atlassian.net",
+          email: "",
+          tokenKeychainKey: "jira.repo",
+        },
+      }),
+    });
+    expect(mounted.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not read Keychain when loading disabled Jira with a blank token key", async () => {
+    const disabledBlankJiraConfig: RepoConfigDto = {
+      ...repoConfig,
+      jira: {
+        enabled: false,
+        workspaceUrl: "",
+        email: "",
+        tokenKeychainKey: "",
+      },
+    };
+    const api = makeApi({
+      config: {
+        get: vi
+          .fn()
+          .mockResolvedValue(ok({ config: disabledBlankJiraConfig, source: "file" as const })),
+        saveJira: vi.fn(),
+        saveRepository: vi.fn(),
+      },
+      secrets: {
+        get: vi.fn().mockResolvedValue(err({ message: "should not read token status" })),
+        set: vi.fn().mockResolvedValue(ok(undefined)),
+        remove: vi.fn().mockResolvedValue(ok(undefined)),
+      },
+    });
+
+    const mounted = await mountSettings(api);
+    cleanup = mounted.unmount;
+
+    expect(api.secrets.get).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("Cannot read Jira token status");
+  });
+
+  it("creates repo config, stores a fresh token, and closes Settings after save", async () => {
+    let resolveConfigSave!: (value: SaveRepositoryResult) => void;
+    const saveConfigPromise = new Promise<SaveRepositoryResult>((resolve) => {
       resolveConfigSave = resolve;
     });
 
@@ -222,10 +386,9 @@ describe("Settings Jira token save UX", () => {
 
     const api = makeApi({
       config: {
-        get: vi
-          .fn()
-          .mockResolvedValue(ok({ config: makeConfigWithoutJira(), source: "defaults" as const })),
-        saveJira: vi.fn().mockReturnValue(saveConfigPromise),
+        get: vi.fn().mockResolvedValue(ok({ config: repoConfig, source: "defaults" as const })),
+        saveJira: vi.fn(),
+        saveRepository: vi.fn().mockReturnValue(saveConfigPromise),
       },
       secrets: {
         get: vi.fn().mockResolvedValue(ok({ value: null })),
@@ -237,21 +400,26 @@ describe("Settings Jira token save UX", () => {
     const mounted = await mountSettings(api);
     cleanup = mounted.unmount;
 
-    await setInput("#settings-jira-workspace-url", "https://example.atlassian.net");
-    await setInput("#settings-jira-email", "dev@example.com");
-    await setInput("#settings-jira-token-key", "jira.example");
-    await typeToken("ATATT-token");
+    await clickButton("Connection");
+    await clickCheckbox("#settings-jira-enabled");
+    await setControl("#settings-jira-workspace-url", "https://example.atlassian.net");
+    await setControl("#settings-jira-email", "dev@example.com");
+    await setControl("#settings-jira-token-key", "jira.example");
+    await clickButton("Token");
+    await setControl("#settings-token", "ATATT-token");
     await clickButton("Save");
 
     expect(document.body.textContent).toContain("Saving...");
-    expect(api.config.saveJira).toHaveBeenCalledWith({
+    expect(api.config.saveRepository).toHaveBeenCalledWith({
       repoPath: "/repo",
-      jira: {
-        enabled: true,
-        workspaceUrl: "https://example.atlassian.net",
-        email: "dev@example.com",
-        tokenKeychainKey: "jira.example",
-      },
+      config: expect.objectContaining({
+        jira: {
+          enabled: true,
+          workspaceUrl: "https://example.atlassian.net",
+          email: "dev@example.com",
+          tokenKeychainKey: "jira.example",
+        },
+      }),
     });
     expect(api.secrets.set).not.toHaveBeenCalled();
     expect(mounted.onClose).not.toHaveBeenCalled();
@@ -270,15 +438,6 @@ describe("Settings Jira token save UX", () => {
 
   it("keeps Settings open and explains when config saved but token storage failed", async () => {
     const api = makeApi({
-      config: {
-        get: vi.fn().mockResolvedValue(ok({ config: jiraConfig, source: "file" as const })),
-        saveJira: vi.fn().mockResolvedValue(
-          ok({
-            config: jiraConfig,
-            configPath: "/repo/.sexyworktree/config.json",
-          })
-        ),
-      },
       secrets: {
         get: vi.fn().mockResolvedValue(ok({ value: null })),
         set: vi.fn().mockResolvedValue(err({ message: "safeStorage encryption is not available" })),
@@ -289,21 +448,22 @@ describe("Settings Jira token save UX", () => {
     const mounted = await mountSettings(api);
     cleanup = mounted.unmount;
 
-    await typeToken("ATATT-token");
+    await clickButton("Token");
+    await setControl("#settings-token", "ATATT-token");
     await clickButton("Save");
     await flush();
 
     expect(mounted.onClose).not.toHaveBeenCalled();
-    expect(api.config.saveJira).toHaveBeenCalled();
+    expect(api.config.saveRepository).toHaveBeenCalled();
     expect(api.secrets.set).toHaveBeenCalledWith({ key: "jira.repo", value: "ATATT-token" });
-    expect(document.body.textContent).toContain("Cannot save Jira settings");
-    expect(document.body.textContent).toContain(
-      "Jira config was saved, but the token could not be stored."
+    expectInlineError(
+      "Cannot save repository settings",
+      "Repository config was saved, but the Jira token could not be stored.",
+      "safeStorage encryption is not available"
     );
-    expect(document.body.textContent).toContain("safeStorage encryption is not available");
   });
 
-  it("disables Settings fields, Save, and Close while initial Jira config is loading", async () => {
+  it("disables controls, Save, and Close while initial config is loading", async () => {
     let resolveConfigGet!: (value: Ok<{ config: RepoConfigDto; source: "file" }>) => void;
     const configGetPromise = new Promise<Ok<{ config: RepoConfigDto; source: "file" }>>(
       (resolve) => {
@@ -313,41 +473,21 @@ describe("Settings Jira token save UX", () => {
     const api = makeApi({
       config: {
         get: vi.fn().mockReturnValue(configGetPromise),
-        saveJira: vi.fn().mockResolvedValue(
-          ok({
-            config: jiraConfig,
-            configPath: "/repo/.sexyworktree/config.json",
-          })
-        ),
+        saveJira: vi.fn(),
+        saveRepository: vi.fn(),
       },
     });
 
     const mounted = await mountSettings(api);
     cleanup = mounted.unmount;
 
-    for (const selector of [
-      "#settings-jira-workspace-url",
-      "#settings-jira-email",
-      "#settings-jira-token-key",
-      "#settings-token",
-    ]) {
-      expect(document.querySelector<HTMLInputElement>(selector)?.disabled).toBe(true);
-    }
-
-    const saveButton = [...document.querySelectorAll("button")].find(
-      (el) => el.textContent?.trim() === "Save"
-    );
-    const closeButton = document.querySelector<HTMLButtonElement>(
-      'button[aria-label="Close settings"]'
-    );
-
-    expect(saveButton?.disabled).toBe(true);
-    expect(closeButton?.disabled).toBe(true);
+    expect(byTextButton("Save").disabled).toBe(true);
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="Close settings"]')?.disabled
+    ).toBe(true);
 
     await clickButton("Save");
-    closeButton?.click();
-
-    expect(api.config.saveJira).not.toHaveBeenCalled();
+    expect(api.config.saveRepository).not.toHaveBeenCalled();
     expect(mounted.onClose).not.toHaveBeenCalled();
 
     resolveConfigGet(ok({ config: jiraConfig, source: "file" }));
@@ -370,27 +510,18 @@ describe("Settings Jira token save UX", () => {
     const mounted = await mountSettings(api);
     cleanup = mounted.unmount;
 
+    await clickButton("Token");
     await clickButton("Clear");
 
-    const saveButton = [...document.querySelectorAll("button")].find(
-      (el) => el.textContent?.trim() === "Save"
-    );
-    const clearButton = [...document.querySelectorAll("button")].find(
-      (el) => el.textContent?.trim() === "Clear"
-    );
-    const closeButton = document.querySelector<HTMLButtonElement>(
-      'button[aria-label="Close settings"]'
-    );
-
     expect(api.secrets.remove).toHaveBeenCalledWith({ key: "jira.repo" });
-    expect(saveButton?.disabled).toBe(true);
-    expect(clearButton?.disabled).toBe(true);
-    expect(closeButton?.disabled).toBe(true);
+    expect(byTextButton("Save").disabled).toBe(true);
+    expect(byTextButton("Clear").disabled).toBe(true);
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="Close settings"]')?.disabled
+    ).toBe(true);
 
     await clickButton("Save");
-    closeButton?.click();
-
-    expect(api.config.saveJira).not.toHaveBeenCalled();
+    expect(api.config.saveRepository).not.toHaveBeenCalled();
     expect(mounted.onClose).not.toHaveBeenCalled();
 
     resolveRemove(ok(undefined));
@@ -409,98 +540,95 @@ describe("Settings Jira token save UX", () => {
     const mounted = await mountSettings(api);
     cleanup = mounted.unmount;
 
-    expectInlineError("Cannot save Jira settings", "keychain status failed");
+    expectInlineError("Cannot save repository settings", "keychain status failed");
 
-    await typeToken("ATATT-token");
+    await clickButton("Token");
+    await setControl("#settings-token", "ATATT-token");
     await clickButton("Save");
     await flush();
 
-    expect(api.config.saveJira).toHaveBeenCalledWith({
-      repoPath: "/repo",
-      jira: {
-        enabled: true,
-        workspaceUrl: "https://example.atlassian.net",
-        email: "dev@example.com",
-        tokenKeychainKey: "jira.repo",
-      },
-    });
+    expect(api.config.saveRepository).toHaveBeenCalled();
     expect(api.secrets.set).toHaveBeenCalledWith({ key: "jira.repo", value: "ATATT-token" });
     expect(mounted.onClose).toHaveBeenCalledTimes(1);
   });
 
   it.each([
     {
-      name: "workspace URL",
-      inputs: {
-        token: "ATATT-token",
-        email: "dev@example.com",
-        tokenKey: "jira.example",
-      },
-      message: "Enter a Jira workspace URL.",
+      selector: "#settings-worktree-base-dir",
+      section: "Paths",
+      message: "Enter a worktree base directory.",
     },
     {
-      name: "email",
-      inputs: {
-        workspaceUrl: "https://example.atlassian.net",
-        token: "ATATT-token",
-        tokenKey: "jira.example",
-      },
-      message: "Enter the Jira account email.",
+      selector: "#settings-worktree-default-base-branch",
+      section: "Paths",
+      message: "Enter a default base branch.",
     },
     {
-      name: "token key",
-      inputs: {
-        workspaceUrl: "https://example.atlassian.net",
-        email: "dev@example.com",
-        token: "ATATT-token",
-      },
-      message: "Enter a Keychain token key.",
+      selector: "#settings-worktree-install-command",
+      section: "Bootstrap",
+      message: "Enter an install command.",
     },
   ])(
-    "shows a specific inline error when required Jira $name is missing",
-    async ({ inputs, message }) => {
-      const api = makeApi({
-        config: {
-          get: vi.fn().mockResolvedValue(
-            ok({
-              config: makeConfigWithoutJira(),
-              source: "defaults" as const,
-            })
-          ),
-          saveJira: vi.fn().mockResolvedValue(
-            ok({
-              config: jiraConfig,
-              configPath: "/repo/.sexyworktree/config.json",
-            })
-          ),
-        },
-      });
-
+    "shows a specific inline error when required $selector is missing",
+    async ({ selector, section, message }) => {
+      const api = makeApi();
       const mounted = await mountSettings(api);
       cleanup = mounted.unmount;
 
-      const tokenKeyInput = document.querySelector<HTMLInputElement>("#settings-jira-token-key");
-      expect(tokenKeyInput?.value).toBe("jira.repo");
-
-      if (inputs.workspaceUrl) {
-        await setInput("#settings-jira-workspace-url", inputs.workspaceUrl);
-      }
-      if (inputs.email) {
-        await setInput("#settings-jira-email", inputs.email);
-      }
-      if (inputs.tokenKey) {
-        await setInput("#settings-jira-token-key", inputs.tokenKey);
-      } else if (message === "Enter a Keychain token key.") {
-        await setInput("#settings-jira-token-key", "");
-      }
-      await typeToken(inputs.token);
+      await clickButton(section);
+      await setControl(selector, "");
       await clickButton("Save");
       await flush();
 
-      expect(api.config.saveJira).not.toHaveBeenCalled();
+      expect(api.config.saveRepository).not.toHaveBeenCalled();
+      expect(mounted.onClose).not.toHaveBeenCalled();
+      expectInlineError(
+        "Cannot save repository settings",
+        message,
+        "/repo/.sexyworktree/config.json"
+      );
+    }
+  );
+
+  it.each([
+    {
+      selector: "#settings-jira-workspace-url",
+      message: "Enter a Jira workspace URL.",
+    },
+    {
+      selector: "#settings-jira-email",
+      message: "Enter the Jira account email.",
+    },
+    {
+      selector: "#settings-jira-token-key",
+      message: "Enter a Keychain token key.",
+    },
+  ])(
+    "shows a specific inline error when required Jira $selector is missing",
+    async ({ selector, message }) => {
+      const api = makeApi({
+        secrets: {
+          get: vi.fn().mockResolvedValue(ok({ value: "stored-token" })),
+          set: vi.fn().mockResolvedValue(ok(undefined)),
+          remove: vi.fn().mockResolvedValue(ok(undefined)),
+        },
+      });
+      const mounted = await mountSettings(api);
+      cleanup = mounted.unmount;
+
+      await clickButton("Connection");
+      await setControl(selector, "");
+      await clickButton("Save");
+      await flush();
+
+      expect(api.config.saveRepository).not.toHaveBeenCalled();
       expect(api.secrets.set).not.toHaveBeenCalled();
       expect(mounted.onClose).not.toHaveBeenCalled();
-      expectInlineError("Cannot save Jira settings", message, "/repo/.sexyworktree/config.json");
+      expectInlineError(
+        "Cannot save repository settings",
+        message,
+        "/repo/.sexyworktree/config.json"
+      );
     }
   );
 
@@ -508,7 +636,8 @@ describe("Settings Jira token save UX", () => {
     const api = makeApi({
       config: {
         get: vi.fn().mockResolvedValue(ok({ config: jiraConfig, source: "file" as const })),
-        saveJira: vi
+        saveJira: vi.fn(),
+        saveRepository: vi
           .fn()
           .mockResolvedValue(err({ kind: "write-failed", message: "permission denied" })),
       },
@@ -517,40 +646,14 @@ describe("Settings Jira token save UX", () => {
     const mounted = await mountSettings(api);
     cleanup = mounted.unmount;
 
-    await typeToken("ATATT-token");
+    await clickButton("Token");
+    await setControl("#settings-token", "ATATT-token");
     await clickButton("Save");
     await flush();
 
     expect(mounted.onClose).not.toHaveBeenCalled();
     expect(api.secrets.set).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain("Cannot save Jira settings");
-    expect(document.body.textContent).toContain("permission denied");
-  });
-
-  it("disables the close button while saving", async () => {
-    const savePromise = new Promise<Ok<void>>(() => {});
-    const api = makeApi({
-      secrets: {
-        get: vi.fn().mockResolvedValue(ok({ value: null })),
-        set: vi.fn().mockReturnValue(savePromise),
-        remove: vi.fn().mockResolvedValue(ok(undefined)),
-      },
-    });
-
-    const mounted = await mountSettings(api);
-    cleanup = mounted.unmount;
-
-    await typeToken("ATATT-token");
-    await clickButton("Save");
-
-    const closeButton = document.querySelector<HTMLButtonElement>(
-      'button[aria-label="Close settings"]'
-    );
-
-    expect(closeButton).toBeDefined();
-    expect(closeButton!.disabled).toBe(true);
-    closeButton!.click();
-    expect(mounted.onClose).not.toHaveBeenCalled();
+    expectInlineError("Cannot save repository settings", "permission denied");
   });
 
   it("keeps token status and shows an error toast when Clear fails", async () => {
@@ -565,6 +668,7 @@ describe("Settings Jira token save UX", () => {
     const mounted = await mountSettings(api);
     cleanup = mounted.unmount;
 
+    await clickButton("Token");
     expect(document.body.textContent).toContain("Token stored in Keychain");
 
     await clickButton("Clear");
@@ -576,7 +680,7 @@ describe("Settings Jira token save UX", () => {
     expect(document.body.textContent).toContain("keychain remove failed");
   });
 
-  it("requires a new token when the token key changes away from the stored key", async () => {
+  it("requires a new token when the token key changes away from the stored key while Jira is enabled", async () => {
     const api = makeApi({
       secrets: {
         get: vi.fn().mockResolvedValue(ok({ value: "stored-token" })),
@@ -588,21 +692,22 @@ describe("Settings Jira token save UX", () => {
     const mounted = await mountSettings(api);
     cleanup = mounted.unmount;
 
+    await clickButton("Token");
     expect(document.body.textContent).toContain("Token stored in Keychain");
 
-    await setInput("#settings-jira-token-key", "jira.changed");
+    await clickButton("Connection");
+    await setControl("#settings-jira-token-key", "jira.changed");
+    await clickButton("Token");
     expect(document.body.textContent).toContain("No token stored");
-    expect(document.body.textContent).not.toContain("Token stored in Keychain");
 
     await clickButton("Save");
     await flush();
 
-    expect(api.config.saveJira).not.toHaveBeenCalled();
+    expect(api.config.saveRepository).not.toHaveBeenCalled();
     expect(api.secrets.set).not.toHaveBeenCalled();
     expect(mounted.onClose).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain("No token stored");
     expectInlineError(
-      "Cannot save Jira settings",
+      "Cannot save repository settings",
       "/repo/.sexyworktree/config.json",
       "Enter a Jira API token before saving."
     );

@@ -1,12 +1,77 @@
 import { useEffect, useState } from "react";
+import { FolderOpen, GitBranch, KeyRound, Plug, Rocket } from "lucide-react";
 import { Dialog, Label } from "../ui";
+import { Icon, type LucideIcon } from "../icons/Icon";
 import { cn } from "../lib/cn";
 import { api } from "../ipc/api";
 import { useRepos } from "../state/repos";
 import { useToast } from "../state/toast";
-import type { ConfigError, ConfigSaveError } from "@shared/ipc";
+import type { ConfigError, ConfigSaveError, RepoConfigDto } from "@shared/ipc";
+import {
+  formFromConfig,
+  normalizeRepositorySettingsForm,
+  type RepositorySettingsForm,
+} from "./settingsForm";
 
 type Props = { open: boolean; onClose: () => void };
+
+type SettingsSection =
+  | "worktree-paths"
+  | "worktree-bootstrap"
+  | "worktree-startup"
+  | "jira-connection"
+  | "jira-token";
+
+type SettingsNavItem = {
+  section: SettingsSection;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+};
+
+const WORKTREE_NAV_ITEMS: SettingsNavItem[] = [
+  {
+    section: "worktree-paths",
+    label: "Paths",
+    description: "Base dir and branch",
+    icon: FolderOpen,
+  },
+  {
+    section: "worktree-bootstrap",
+    label: "Bootstrap",
+    description: "Copy, install, init",
+    icon: GitBranch,
+  },
+  {
+    section: "worktree-startup",
+    label: "Startup",
+    description: "Default terminal command",
+    icon: Rocket,
+  },
+];
+
+const JIRA_NAV_ITEMS: SettingsNavItem[] = [
+  {
+    section: "jira-connection",
+    label: "Connection",
+    description: "Workspace and account",
+    icon: Plug,
+  },
+  {
+    section: "jira-token",
+    label: "Token",
+    description: "Keychain credential",
+    icon: KeyRound,
+  },
+];
+
+const INPUT_CLASS =
+  "border-border-strong bg-elevated text-text-primary focus:border-accent focus:outline-accent-soft rounded-md border px-3 py-2 font-mono text-base focus:outline-2 disabled:cursor-not-allowed disabled:opacity-40";
+
+const TEXTAREA_CLASS = cn(
+  INPUT_CLASS,
+  "scrollbar-hidden min-h-[112px] resize-none overflow-y-auto"
+);
 
 function describeConfigError(error: ConfigError): string {
   if (error.kind === "invalid") return error.issues.join(", ");
@@ -30,14 +95,110 @@ function describeUnknownError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function SettingsNavGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-2 px-3">
+      <div className="text-text-muted px-2 text-xs font-medium uppercase">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function SettingsNavButton({
+  active,
+  item,
+  onClick,
+}: {
+  active: boolean;
+  item: SettingsNavItem;
+  onClick: () => void;
+}): React.JSX.Element {
+  return (
+    <button
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "group flex w-full items-start gap-3 rounded-md border px-3 py-3 text-left transition-colors duration-150",
+        active
+          ? "border-accent-soft bg-surface text-text-primary"
+          : "border-transparent text-text-secondary hover:bg-surface"
+      )}
+      onClick={onClick}
+      type="button"
+    >
+      <span
+        className={cn(
+          "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-sm transition-colors duration-150",
+          active
+            ? "bg-elevated text-text-primary"
+            : "text-text-muted group-hover:text-text-primary"
+        )}
+      >
+        <Icon icon={item.icon} size={14} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="truncate text-sm font-medium">{item.label}</span>
+        <span className="text-text-muted truncate text-xs">{item.description}</span>
+      </span>
+    </button>
+  );
+}
+
+function SettingsNavSection({
+  title,
+  items,
+  activeSection,
+  onSelect,
+}: {
+  title: string;
+  items: SettingsNavItem[];
+  activeSection: SettingsSection;
+  onSelect: (section: SettingsSection) => void;
+}): React.JSX.Element {
+  return (
+    <SettingsNavGroup title={title}>
+      {items.map((item) => (
+        <SettingsNavButton
+          key={item.section}
+          active={activeSection === item.section}
+          item={item}
+          onClick={() => onSelect(item.section)}
+        />
+      ))}
+    </SettingsNavGroup>
+  );
+}
+
+function Field({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: string;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+    </div>
+  );
+}
+
 export function Settings({ open, onClose }: Props): React.JSX.Element | null {
   const { repos, activeRepoId } = useRepos();
   const repo = repos.find((r) => r.id === activeRepoId) ?? null;
   const toast = useToast();
-  const [workspaceUrl, setWorkspaceUrl] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
-  const [tokenKey, setTokenKey] = useState<string>("");
-  const [token, setToken] = useState<string>("");
+  const [section, setSection] = useState<SettingsSection>("worktree-paths");
+  const [form, setForm] = useState<RepositorySettingsForm | null>(null);
+  const [loadedConfig, setLoadedConfig] = useState<RepoConfigDto | null>(null);
+  const [token, setToken] = useState("");
   const [tokenPresent, setTokenPresent] = useState(false);
   const [storedTokenKey, setStoredTokenKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -51,9 +212,9 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
     if (!open || !repo) return;
 
     let cancelled = false;
-    setWorkspaceUrl("");
-    setEmail("");
-    setTokenKey(defaultTokenKey(repo.name));
+    setSection("worktree-paths");
+    setForm(null);
+    setLoadedConfig(null);
     setToken("");
     setTokenPresent(false);
     setStoredTokenKey(null);
@@ -70,16 +231,15 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
         if (cancelled) return;
 
         if (!c.ok) {
-          setLoadingError(`Cannot load Jira settings: ${describeConfigError(c.error)}`);
+          setLoadingError(`Cannot load repository settings: ${describeConfigError(c.error)}`);
           return;
         }
 
-        const jira = c.value.config.jira;
-        if (!jira?.enabled) return;
+        setLoadedConfig(c.value.config);
+        setForm(formFromConfig(c.value.config, defaultTokenKey(repo.name)));
 
-        setWorkspaceUrl(jira.workspaceUrl);
-        setEmail(jira.email);
-        setTokenKey(jira.tokenKeychainKey);
+        const jira = c.value.config.jira;
+        if (!jira?.enabled || !jira.tokenKeychainKey.trim()) return;
 
         try {
           const v = await api.secrets.get({ key: jira.tokenKeychainKey });
@@ -94,7 +254,7 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
         }
       } catch (error) {
         if (cancelled) return;
-        setLoadingError(`Cannot load Jira settings: ${describeUnknownError(error)}`);
+        setLoadingError(`Cannot load repository settings: ${describeUnknownError(error)}`);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -108,57 +268,92 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
   if (!repo) return null;
   const selectedRepo = repo;
   const busy = loading || saving || clearing;
+  const tokenKey = form?.jira.tokenKeychainKey.trim() ?? "";
+  const tokenAvailableForCurrentKey = tokenPresent && storedTokenKey === tokenKey;
+  const cannotSaveReason = saveError ?? loadingError;
+  const saveDisabled = busy || form === null;
+  const errorId = "settings-repository-error";
 
-  async function save(): Promise<void> {
-    if (busy) return;
+  function clearErrors(): void {
     setSaveError(null);
     setSupportingError(null);
+  }
+
+  function updateWorktree(patch: Partial<RepositorySettingsForm["worktree"]>): void {
+    setForm((current) =>
+      current ? { ...current, worktree: { ...current.worktree, ...patch } } : current
+    );
+    clearErrors();
+  }
+
+  function updateJira(patch: Partial<RepositorySettingsForm["jira"]>): void {
+    setForm((current) => (current ? { ...current, jira: { ...current.jira, ...patch } } : current));
+    clearErrors();
+  }
+
+  async function save(): Promise<void> {
+    if (busy || !form) return;
+    clearErrors();
 
     if (loadingError) {
       setSaveError(loadingError);
       return;
     }
 
-    const nextWorkspaceUrl = workspaceUrl.trim();
-    const nextEmail = email.trim();
-    const nextTokenKey = tokenKey.trim();
+    const nextConfig = normalizeRepositorySettingsForm(form, loadedConfig ?? undefined);
     const nextToken = token.trim();
+    const nextTokenKey = nextConfig.jira?.tokenKeychainKey ?? "";
     const tokenAvailableForKey = tokenPresent && storedTokenKey === nextTokenKey;
 
-    if (!nextWorkspaceUrl) {
-      setSaveError("Enter a Jira workspace URL.");
+    if (!nextConfig.worktree.baseDir) {
+      setSaveError("Enter a worktree base directory.");
       setSupportingError(`Expected config: ${expectedConfigPath(selectedRepo.path)}`);
       return;
     }
 
-    if (!nextEmail) {
-      setSaveError("Enter the Jira account email.");
+    if (!nextConfig.worktree.defaultBaseBranch) {
+      setSaveError("Enter a default base branch.");
       setSupportingError(`Expected config: ${expectedConfigPath(selectedRepo.path)}`);
       return;
     }
 
-    if (!nextTokenKey) {
-      setSaveError("Enter a Keychain token key.");
+    if (!nextConfig.worktree.installCommand) {
+      setSaveError("Enter an install command.");
       setSupportingError(`Expected config: ${expectedConfigPath(selectedRepo.path)}`);
       return;
     }
 
-    if (!nextToken && !tokenAvailableForKey) {
-      setSaveError("Enter a Jira API token before saving.");
-      setSupportingError(`Expected config: ${expectedConfigPath(selectedRepo.path)}`);
-      return;
+    if (nextConfig.jira?.enabled) {
+      if (!nextConfig.jira.workspaceUrl) {
+        setSaveError("Enter a Jira workspace URL.");
+        setSupportingError(`Expected config: ${expectedConfigPath(selectedRepo.path)}`);
+        return;
+      }
+
+      if (!nextConfig.jira.email) {
+        setSaveError("Enter the Jira account email.");
+        setSupportingError(`Expected config: ${expectedConfigPath(selectedRepo.path)}`);
+        return;
+      }
+
+      if (!nextConfig.jira.tokenKeychainKey) {
+        setSaveError("Enter a Keychain token key.");
+        setSupportingError(`Expected config: ${expectedConfigPath(selectedRepo.path)}`);
+        return;
+      }
+
+      if (!nextToken && !tokenAvailableForKey) {
+        setSaveError("Enter a Jira API token before saving.");
+        setSupportingError(`Expected config: ${expectedConfigPath(selectedRepo.path)}`);
+        return;
+      }
     }
 
     setSaving(true);
     try {
-      const configResult = await api.config.saveJira({
+      const configResult = await api.config.saveRepository({
         repoPath: selectedRepo.path,
-        jira: {
-          enabled: true,
-          workspaceUrl: nextWorkspaceUrl,
-          email: nextEmail,
-          tokenKeychainKey: nextTokenKey,
-        },
+        config: nextConfig,
       });
 
       if (!configResult.ok) {
@@ -167,21 +362,23 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
         return;
       }
 
-      if (nextToken) {
-        const tokenResult = await api.secrets.set({ key: nextTokenKey, value: nextToken });
+      setLoadedConfig(configResult.value.config);
+
+      if (nextToken && nextConfig.jira) {
+        const tokenResult = await api.secrets.set({
+          key: nextConfig.jira.tokenKeychainKey,
+          value: nextToken,
+        });
         if (!tokenResult.ok) {
-          setSaveError("Jira config was saved, but the token could not be stored.");
+          setSaveError("Repository config was saved, but the Jira token could not be stored.");
           setSupportingError(tokenResult.error.message);
           return;
         }
         setTokenPresent(true);
-        setStoredTokenKey(nextTokenKey);
+        setStoredTokenKey(nextConfig.jira.tokenKeychainKey);
         setToken("");
       }
 
-      setWorkspaceUrl(nextWorkspaceUrl);
-      setEmail(nextEmail);
-      setTokenKey(nextTokenKey);
       onClose();
     } finally {
       setSaving(false);
@@ -190,20 +387,18 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
 
   async function clearToken(): Promise<void> {
     if (busy) return;
-    setSaveError(null);
-    setSupportingError(null);
+    clearErrors();
 
-    const key = tokenKey.trim();
-    if (!key) {
+    if (!tokenKey) {
       setSaveError("Enter a Keychain token key before clearing the token.");
       return;
     }
 
     setClearing(true);
     try {
-      const r = await api.secrets.remove({ key });
+      const r = await api.secrets.remove({ key: tokenKey });
       if (r.ok) {
-        if (storedTokenKey === key) {
+        if (storedTokenKey === tokenKey) {
           setTokenPresent(false);
           setStoredTokenKey(null);
         }
@@ -222,20 +417,138 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
     }
   }
 
-  const tokenAvailableForCurrentKey = tokenPresent && storedTokenKey === tokenKey.trim();
-  const cannotSaveReason = saveError ?? loadingError;
-  const saveDisabled = busy;
-  const errorId = "settings-jira-error";
+  function renderPanel(): React.JSX.Element {
+    if (!form) {
+      return (
+        <div className="text-text-muted text-sm">
+          {loading ? "Loading settings..." : "No settings"}
+        </div>
+      );
+    }
 
-  return (
-    <Dialog.Root open={open} onOpenChange={(o) => !o && !busy && onClose()}>
-      <Dialog.Content size="wide">
-        <Dialog.Header>
-          <Dialog.Title>Settings · Jira</Dialog.Title>
-          <Dialog.Close disabled={busy} ariaLabel="Close settings" />
-        </Dialog.Header>
+    if (section === "worktree-paths") {
+      return (
+        <div className="flex flex-col gap-4">
+          <Field id="settings-worktree-base-dir" label="Base Directory">
+            <input
+              id="settings-worktree-base-dir"
+              className={INPUT_CLASS}
+              value={form.worktree.baseDir}
+              onChange={(e) => updateWorktree({ baseDir: e.target.value })}
+              disabled={busy}
+            />
+          </Field>
+          <Field id="settings-worktree-default-base-branch" label="Default Base Branch">
+            <input
+              id="settings-worktree-default-base-branch"
+              className={INPUT_CLASS}
+              value={form.worktree.defaultBaseBranch}
+              onChange={(e) => updateWorktree({ defaultBaseBranch: e.target.value })}
+              disabled={busy}
+            />
+          </Field>
+        </div>
+      );
+    }
+
+    if (section === "worktree-bootstrap") {
+      return (
+        <div className="flex flex-col gap-4">
+          <Field id="settings-worktree-files-to-copy" label="Files to Copy">
+            <textarea
+              id="settings-worktree-files-to-copy"
+              className={TEXTAREA_CLASS}
+              value={form.worktree.filesToCopyText}
+              onChange={(e) => updateWorktree({ filesToCopyText: e.target.value })}
+              disabled={busy}
+            />
+          </Field>
+          <Field id="settings-worktree-install-command" label="Install Command">
+            <input
+              id="settings-worktree-install-command"
+              className={INPUT_CLASS}
+              value={form.worktree.installCommand}
+              onChange={(e) => updateWorktree({ installCommand: e.target.value })}
+              disabled={busy}
+            />
+          </Field>
+          <Field id="settings-worktree-init-commands" label="Init Commands">
+            <textarea
+              id="settings-worktree-init-commands"
+              className={TEXTAREA_CLASS}
+              value={form.worktree.initCommandsText}
+              onChange={(e) => updateWorktree({ initCommandsText: e.target.value })}
+              disabled={busy}
+            />
+          </Field>
+        </div>
+      );
+    }
+
+    if (section === "worktree-startup") {
+      return (
+        <Field id="settings-worktree-default-startup-command" label="Default Startup Command">
+          <input
+            id="settings-worktree-default-startup-command"
+            className={INPUT_CLASS}
+            value={form.worktree.defaultStartupCommand}
+            onChange={(e) => updateWorktree({ defaultStartupCommand: e.target.value })}
+            disabled={busy}
+          />
+        </Field>
+      );
+    }
+
+    if (section === "jira-connection") {
+      return (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <input
+              id="settings-jira-enabled"
+              type="checkbox"
+              checked={form.jira.enabled}
+              onChange={(e) => updateJira({ enabled: e.target.checked })}
+              disabled={busy}
+            />
+            <Label htmlFor="settings-jira-enabled">Enable Jira</Label>
+          </div>
+          <Field id="settings-jira-workspace-url" label="Workspace URL">
+            <input
+              id="settings-jira-workspace-url"
+              className={INPUT_CLASS}
+              type="url"
+              value={form.jira.workspaceUrl}
+              onChange={(e) => updateJira({ workspaceUrl: e.target.value })}
+              disabled={busy || !form.jira.enabled}
+            />
+          </Field>
+          <Field id="settings-jira-email" label="Email">
+            <input
+              id="settings-jira-email"
+              className={INPUT_CLASS}
+              type="email"
+              value={form.jira.email}
+              onChange={(e) => updateJira({ email: e.target.value })}
+              disabled={busy || !form.jira.enabled}
+            />
+          </Field>
+          <Field id="settings-jira-token-key" label="Keychain Token Key">
+            <input
+              id="settings-jira-token-key"
+              className={INPUT_CLASS}
+              value={form.jira.tokenKeychainKey}
+              onChange={(e) => updateJira({ tokenKeychainKey: e.target.value })}
+              disabled={busy || !form.jira.enabled}
+            />
+          </Field>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-2">
-          <span className="text-text-muted text-xs tracking-[0.04em] uppercase">Status</span>
+          <span className="text-text-muted text-xs font-medium uppercase">Status</span>
           <div
             className={cn(
               "text-sm",
@@ -245,99 +558,103 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
             {tokenAvailableForCurrentKey ? "Token stored in Keychain" : "No token stored"}
           </div>
         </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="settings-jira-workspace-url">Workspace URL</Label>
-          <input
-            id="settings-jira-workspace-url"
-            className="border-border-strong bg-elevated text-text-primary focus:border-accent focus:outline-accent-soft rounded-md border px-3 py-2 font-mono text-base focus:outline-2 disabled:cursor-not-allowed disabled:opacity-40"
-            type="url"
-            value={workspaceUrl}
-            onChange={(e) => {
-              setWorkspaceUrl(e.target.value);
-              setSaveError(null);
-              setSupportingError(null);
-            }}
-            placeholder="https://example.atlassian.net"
-            disabled={busy}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="settings-jira-email">Email</Label>
-          <input
-            id="settings-jira-email"
-            className="border-border-strong bg-elevated text-text-primary focus:border-accent focus:outline-accent-soft rounded-md border px-3 py-2 font-mono text-base focus:outline-2 disabled:cursor-not-allowed disabled:opacity-40"
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setSaveError(null);
-              setSupportingError(null);
-            }}
-            placeholder="dev@example.com"
-            disabled={busy}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="settings-jira-token-key">Keychain Token Key</Label>
-          <input
-            id="settings-jira-token-key"
-            className="border-border-strong bg-elevated text-text-primary focus:border-accent focus:outline-accent-soft rounded-md border px-3 py-2 font-mono text-base focus:outline-2 disabled:cursor-not-allowed disabled:opacity-40"
-            type="text"
-            value={tokenKey}
-            onChange={(e) => {
-              setTokenKey(e.target.value);
-              setSaveError(null);
-              setSupportingError(null);
-            }}
-            placeholder="jira.example"
-            disabled={busy}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="settings-token">API Token</Label>
+        <Field id="settings-token" label="API Token">
           <input
             id="settings-token"
-            className="border-border-strong bg-elevated text-text-primary focus:border-accent focus:outline-accent-soft rounded-md border px-3 py-2 font-mono text-base focus:outline-2 disabled:cursor-not-allowed disabled:opacity-40"
+            className={INPUT_CLASS}
             type="password"
             value={token}
             onChange={(e) => {
               setToken(e.target.value);
-              setSaveError(null);
-              setSupportingError(null);
+              clearErrors();
             }}
-            placeholder="ATATT..."
-            disabled={busy}
+            disabled={busy || !form.jira.enabled}
             aria-invalid={Boolean(cannotSaveReason)}
             aria-describedby={cannotSaveReason ? errorId : undefined}
           />
-          {cannotSaveReason && (
-            <div id={errorId} className="flex flex-col gap-1" role="alert">
-              <span className="text-destructive text-xs">Cannot save Jira settings</span>
-              <span className="text-text-muted text-xs">{cannotSaveReason}</span>
-              {supportingError && (
-                <span className="text-text-muted text-xs">{supportingError}</span>
-              )}
-            </div>
-          )}
-        </div>
-        <Dialog.Footer>
-          {tokenAvailableForCurrentKey && (
-            <button
-              className="text-text-secondary hover:bg-elevated rounded-sm px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
-              onClick={() => void clearToken()}
-              disabled={busy}
-            >
-              Clear
-            </button>
-          )}
+        </Field>
+        {tokenAvailableForCurrentKey && (
           <button
-            className="bg-accent text-background rounded-sm px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
-            onClick={() => void save()}
-            disabled={saveDisabled}
+            className="text-text-secondary hover:bg-elevated self-start rounded-sm px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={() => void clearToken()}
+            disabled={busy}
+            type="button"
           >
-            {saving ? "Saving..." : "Save"}
+            Clear
           </button>
-        </Dialog.Footer>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <Dialog.Root open={open} onOpenChange={(o) => !o && !busy && onClose()}>
+      <Dialog.Content size="settings">
+        <div className="flex min-h-0 flex-1">
+          <nav
+            aria-label="Settings sections"
+            className="settings-nav-width bg-background border-border-subtle flex shrink-0 flex-col gap-4 border-r py-4"
+          >
+            <SettingsNavSection
+              title="Worktree"
+              items={WORKTREE_NAV_ITEMS}
+              activeSection={section}
+              onSelect={setSection}
+            />
+            <SettingsNavSection
+              title="Jira"
+              items={JIRA_NAV_ITEMS}
+              activeSection={section}
+              onSelect={setSection}
+            />
+          </nav>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <Dialog.Header>
+              <div className="border-border-subtle flex h-14 items-center border-b px-6">
+                <Dialog.Title>Settings · Repository</Dialog.Title>
+              </div>
+              <div className="absolute top-4 right-4">
+                <Dialog.Close disabled={busy} ariaLabel="Close settings" />
+              </div>
+            </Dialog.Header>
+            <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto p-6">
+              {renderPanel()}
+            </div>
+            {cannotSaveReason && (
+              <div
+                id={errorId}
+                className="border-border-subtle flex flex-col gap-1 border-t px-6 py-3"
+                role="alert"
+              >
+                <span className="text-destructive text-xs">Cannot save repository settings</span>
+                <span className="text-text-muted text-xs">{cannotSaveReason}</span>
+                {supportingError && (
+                  <span className="text-text-muted text-xs">{supportingError}</span>
+                )}
+              </div>
+            )}
+            <Dialog.Footer>
+              <div className="border-border-subtle flex justify-end gap-3 border-t p-4">
+                <button
+                  className="text-text-secondary hover:bg-elevated rounded-sm px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={onClose}
+                  disabled={busy}
+                  type="button"
+                >
+                  Cancel
+                </button>
+                <button
+                  className="bg-accent text-background rounded-sm px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => void save()}
+                  disabled={saveDisabled}
+                  type="button"
+                >
+                  {saving ? "Saving..." : "Save"}
+                </button>
+              </div>
+            </Dialog.Footer>
+          </div>
+        </div>
       </Dialog.Content>
     </Dialog.Root>
   );

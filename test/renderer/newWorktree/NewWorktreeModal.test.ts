@@ -53,6 +53,7 @@ function makeApi(overrides: Partial<ApiMock> = {}): ApiMock {
     config: {
       get: vi.fn().mockResolvedValue(ok({ config: repoConfig, source: "file" as const })),
       saveJira: vi.fn(),
+      saveRepository: vi.fn(),
     },
     pty: {
       spawn: vi.fn(),
@@ -289,6 +290,7 @@ describe("NewWorktreeModal", () => {
       config: {
         get: vi.fn().mockResolvedValue(ok({ config: jiraConfig, source: "file" as const })),
         saveJira: vi.fn(),
+        saveRepository: vi.fn(),
       },
       secrets: {
         get: vi.fn().mockResolvedValue(ok({ value: "token" })),
@@ -339,6 +341,7 @@ describe("NewWorktreeModal", () => {
       config: {
         get: vi.fn().mockResolvedValue(ok({ config: jiraConfig, source: "file" as const })),
         saveJira: vi.fn(),
+        saveRepository: vi.fn(),
       },
       secrets: {
         get: vi.fn().mockResolvedValue(ok({ value: "token" })),
