@@ -1,5 +1,4 @@
 import { ALL_STEPS, type JobSnapshot, type StepKey, type StepStatus } from "@shared/newWorktree";
-import { SerialQueue } from "./queue";
 import {
   stepFetch,
   stepWorktreeAdd,
@@ -21,17 +20,24 @@ export type JobInput = {
   initCommands: string[];
 };
 
+type StepResult = { ok: true } | { ok: false; error: { stderr: string } };
+
+export type StepRunner = (key: StepKey, input: JobInput) => Promise<StepResult>;
+
 export type EventListener = (e: {
   kind: "created" | "updated" | "completed";
   job: JobSnapshot;
 }) => void;
 
 export class Bootstrapper {
-  private queue = new SerialQueue();
+  private runningJobs = new Set<string>();
+  private pendingRetries = new Set<string>();
   private snapshots = new Map<string, JobSnapshot>();
   private listeners = new Set<EventListener>();
   private waiters = new Map<string, Array<() => void>>();
   private inputs = new Map<string, JobInput>();
+
+  constructor(private readonly stepRunner: StepRunner = defaultStepRunner) {}
 
   onEvent(fn: EventListener): () => void {
     this.listeners.add(fn);
@@ -44,6 +50,21 @@ export class Bootstrapper {
 
   list(repoId: number): JobSnapshot[] {
     return [...this.snapshots.values()].filter((s) => s.repoId === repoId);
+  }
+
+  findActiveConflict(args: {
+    repoId: number;
+    branch: string;
+    worktreePath: string;
+  }): { existingPath: string } | null {
+    for (const snap of this.snapshots.values()) {
+      if (snap.repoId !== args.repoId) continue;
+      if (snap.status !== "running" && snap.status !== "failed") continue;
+      if (snap.branch === args.branch || snap.worktreePath === args.worktreePath) {
+        return { existingPath: snap.worktreePath };
+      }
+    }
+    return null;
   }
 
   waitFor(jobId: string): Promise<void> {
@@ -60,12 +81,13 @@ export class Bootstrapper {
 
   enqueue(input: JobInput): string {
     this.inputs.set(input.jobId, input);
+
     const initial: JobSnapshot = {
       id: input.jobId,
       repoId: input.repoId,
       branch: input.branch,
       worktreePath: input.worktreePath,
-      status: "queued",
+      status: "running",
       steps: ALL_STEPS.map((k) => ({ key: k, status: "pending" as StepStatus })),
       failedStep: null,
       failureMessage: null,
@@ -73,31 +95,7 @@ export class Bootstrapper {
     };
     this.snapshots.set(input.jobId, initial);
     this.emit("created", initial);
-
-    this.queue.enqueue(async () => {
-      const cur = this.snapshots.get(input.jobId);
-      if (!cur || cur.status === "cancelled") return;
-      this.update(input.jobId, (s) => ({ ...s, status: "running" }));
-
-      for (const key of ALL_STEPS) {
-        this.markStep(input.jobId, key, "in-progress");
-        const r = await this.runStep(key, input);
-        if (!r.ok) {
-          this.markStep(input.jobId, key, "failed", r.error.stderr);
-          this.update(input.jobId, (s) => ({
-            ...s,
-            status: "failed",
-            failedStep: key,
-            failureMessage: r.error.stderr,
-          }));
-          this.complete(input.jobId);
-          return;
-        }
-        this.markStep(input.jobId, key, "done");
-      }
-      this.update(input.jobId, (s) => ({ ...s, status: "done" }));
-      this.complete(input.jobId);
-    });
+    void this.runJob(input.jobId, input, 0);
 
     return input.jobId;
   }
@@ -108,6 +106,10 @@ export class Bootstrapper {
     if (!snap || !input || snap.status !== "failed") return;
     const failed = snap.failedStep;
     if (!failed) return;
+    if (this.runningJobs.has(jobId)) {
+      this.pendingRetries.add(jobId);
+      return;
+    }
     const idx = ALL_STEPS.indexOf(failed);
     this.update(jobId, (s) => ({
       ...s,
@@ -118,29 +120,7 @@ export class Bootstrapper {
         i < idx ? st : { key: st.key, status: "pending" as StepStatus }
       ),
     }));
-    this.queue.enqueue(async () => {
-      const cur = this.snapshots.get(jobId);
-      if (!cur || cur.status === "cancelled") return;
-      this.update(jobId, (s) => ({ ...s, status: "running" }));
-      for (const key of ALL_STEPS.slice(idx)) {
-        this.markStep(jobId, key, "in-progress");
-        const r = await this.runStep(key, input);
-        if (!r.ok) {
-          this.markStep(jobId, key, "failed", r.error.stderr);
-          this.update(jobId, (s) => ({
-            ...s,
-            status: "failed",
-            failedStep: key,
-            failureMessage: r.error.stderr,
-          }));
-          this.complete(jobId);
-          return;
-        }
-        this.markStep(jobId, key, "done");
-      }
-      this.update(jobId, (s) => ({ ...s, status: "done" }));
-      this.complete(jobId);
-    });
+    void this.runJob(jobId, input, idx);
   }
 
   cancel(jobId: string): void {
@@ -149,42 +129,6 @@ export class Bootstrapper {
     if (snap.status !== "failed" && snap.status !== "queued") return;
     this.update(jobId, (s) => ({ ...s, status: "cancelled" }));
     this.complete(jobId);
-  }
-
-  private async runStep(
-    key: StepKey,
-    input: JobInput
-  ): Promise<{ ok: true } | { ok: false; error: { stderr: string } }> {
-    const map: Record<
-      StepKey,
-      () => Promise<{ ok: true } | { ok: false; error: { stderr: string; code: number } }>
-    > = {
-      fetch: () => stepFetch({ repoPath: input.mainRepoPath }),
-      "worktree-add": () =>
-        stepWorktreeAdd({
-          repoPath: input.mainRepoPath,
-          branchName: input.branch,
-          baseBranch: input.baseBranch,
-          worktreePath: input.worktreePath,
-        }),
-      "files-copy": () =>
-        stepFilesCopy({
-          mainRepoPath: input.mainRepoPath,
-          worktreePath: input.worktreePath,
-          files: input.filesToCopy,
-        }),
-      clonefile: () =>
-        stepClonefileNodeModules({
-          mainRepoPath: input.mainRepoPath,
-          worktreePath: input.worktreePath,
-        }),
-      install: () =>
-        stepInstall({ worktreePath: input.worktreePath, installCommand: input.installCommand }),
-      "init-commands": () =>
-        stepInitCommands({ worktreePath: input.worktreePath, initCommands: input.initCommands }),
-    };
-    const r = await map[key]();
-    return r.ok ? { ok: true } : { ok: false, error: { stderr: r.error.stderr } };
   }
 
   private markStep(jobId: string, key: StepKey, status: StepStatus, message?: string): void {
@@ -198,6 +142,70 @@ export class Bootstrapper {
           : st
       ),
     }));
+  }
+
+  private async runJob(jobId: string, input: JobInput, startIndex: number): Promise<void> {
+    if (this.runningJobs.has(jobId)) return;
+    this.runningJobs.add(jobId);
+    let ownsRunningGuard = true;
+
+    try {
+      const cur = this.snapshots.get(jobId);
+      if (!cur || cur.status === "cancelled") return;
+
+      this.update(jobId, (s) => ({ ...s, status: "running" }));
+
+      for (const key of ALL_STEPS.slice(startIndex)) {
+        this.markStep(jobId, key, "in-progress");
+        let r: StepResult;
+        try {
+          r = await this.stepRunner(key, input);
+        } catch (error) {
+          const failureMessage = error instanceof Error ? error.message : String(error);
+          this.markStep(jobId, key, "failed", failureMessage);
+          this.update(jobId, (s) => ({
+            ...s,
+            status: "failed",
+            failedStep: key,
+            failureMessage,
+          }));
+          this.runningJobs.delete(jobId);
+          ownsRunningGuard = false;
+          this.complete(jobId);
+          this.drainPendingRetry(jobId);
+          return;
+        }
+        if (!r.ok) {
+          this.markStep(jobId, key, "failed", r.error.stderr);
+          this.update(jobId, (s) => ({
+            ...s,
+            status: "failed",
+            failedStep: key,
+            failureMessage: r.error.stderr,
+          }));
+          this.runningJobs.delete(jobId);
+          ownsRunningGuard = false;
+          this.complete(jobId);
+          this.drainPendingRetry(jobId);
+          return;
+        }
+        this.markStep(jobId, key, "done");
+      }
+
+      this.update(jobId, (s) => ({ ...s, status: "done" }));
+      this.runningJobs.delete(jobId);
+      ownsRunningGuard = false;
+      this.complete(jobId);
+    } finally {
+      if (ownsRunningGuard) {
+        this.runningJobs.delete(jobId);
+      }
+    }
+  }
+
+  private drainPendingRetry(jobId: string): void {
+    if (!this.pendingRetries.delete(jobId)) return;
+    this.retry(jobId);
   }
 
   private update(jobId: string, fn: (s: JobSnapshot) => JobSnapshot): void {
@@ -219,4 +227,38 @@ export class Bootstrapper {
   private emit(kind: "created" | "updated" | "completed", job: JobSnapshot): void {
     for (const fn of this.listeners) fn({ kind, job });
   }
+}
+
+async function defaultStepRunner(key: StepKey, input: JobInput): Promise<StepResult> {
+  const map: Record<
+    StepKey,
+    () => Promise<{ ok: true } | { ok: false; error: { stderr: string; code: number } }>
+  > = {
+    fetch: () => stepFetch({ repoPath: input.mainRepoPath }),
+    "worktree-add": () =>
+      stepWorktreeAdd({
+        repoPath: input.mainRepoPath,
+        branchName: input.branch,
+        baseBranch: input.baseBranch,
+        worktreePath: input.worktreePath,
+      }),
+    "files-copy": () =>
+      stepFilesCopy({
+        mainRepoPath: input.mainRepoPath,
+        worktreePath: input.worktreePath,
+        files: input.filesToCopy,
+      }),
+    clonefile: () =>
+      stepClonefileNodeModules({
+        mainRepoPath: input.mainRepoPath,
+        worktreePath: input.worktreePath,
+      }),
+    install: () =>
+      stepInstall({ worktreePath: input.worktreePath, installCommand: input.installCommand }),
+    "init-commands": () =>
+      stepInitCommands({ worktreePath: input.worktreePath, initCommands: input.initCommands }),
+  };
+
+  const r = await map[key]();
+  return r.ok ? { ok: true } : { ok: false, error: { stderr: r.error.stderr } };
 }

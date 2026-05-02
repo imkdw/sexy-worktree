@@ -38,6 +38,13 @@ export function registerNewWorktreeHandlers(getWindow: () => BrowserWindow | nul
         ? join(baseDir, args.branch)
         : join(repo.path, baseDir, args.branch);
 
+      const conflict = bootstrapper.findActiveConflict({
+        repoId: repo.id,
+        branch: args.branch,
+        worktreePath,
+      });
+      if (conflict) return err({ kind: "duplicate", existingPath: conflict.existingPath });
+
       const jobId = randomUUID();
       bootstrapper.enqueue({
         jobId,
