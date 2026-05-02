@@ -23,7 +23,6 @@ describe("settingsForm", () => {
         filesToCopy: [".env.local", ".npmrc"],
         installCommand: "pnpm install",
         initCommands: ["pnpm build", "pnpm test"],
-        defaultStartupCommand: "pnpm dev",
       },
       jira: {
         enabled: true,
@@ -40,7 +39,6 @@ describe("settingsForm", () => {
         filesToCopyText: ".env.local\n.npmrc",
         installCommand: "pnpm install",
         initCommandsText: "pnpm build\npnpm test",
-        defaultStartupCommand: "pnpm dev",
       },
       jira: {
         enabled: true,
@@ -60,7 +58,6 @@ describe("settingsForm", () => {
         filesToCopy: [],
         installCommand: "pnpm install",
         initCommands: [],
-        defaultStartupCommand: "pnpm dev",
       },
     };
 
@@ -71,7 +68,6 @@ describe("settingsForm", () => {
         filesToCopyText: "",
         installCommand: "pnpm install",
         initCommandsText: "",
-        defaultStartupCommand: "pnpm dev",
       },
       jira: {
         enabled: false,
@@ -91,7 +87,6 @@ describe("settingsForm", () => {
         filesToCopy: [],
         installCommand: "pnpm install",
         initCommands: [],
-        defaultStartupCommand: "pnpm dev",
       },
       branchValidation: { requireJiraPattern: true },
     };
@@ -109,7 +104,6 @@ describe("settingsForm", () => {
         filesToCopyText: ".env.local\n",
         installCommand: " yarn install ",
         initCommandsText: "yarn build\n\n",
-        defaultStartupCommand: " yarn dev ",
       },
       jira: {
         enabled: true,
@@ -127,7 +121,6 @@ describe("settingsForm", () => {
         filesToCopy: [".env.local"],
         installCommand: "yarn install",
         initCommands: ["yarn build"],
-        defaultStartupCommand: "yarn dev",
       },
       jira: {
         enabled: true,

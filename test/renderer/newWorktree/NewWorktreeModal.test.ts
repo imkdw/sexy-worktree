@@ -22,7 +22,6 @@ const repoConfig: RepoConfigDto = {
     filesToCopy: [],
     installCommand: "true",
     initCommands: [],
-    defaultStartupCommand: "",
   },
 };
 

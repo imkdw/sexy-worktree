@@ -8,6 +8,5 @@ export const DEFAULT_CONFIG: RepoConfig = {
     filesToCopy: [],
     installCommand: 'echo "no install command configured"',
     initCommands: [],
-    defaultStartupCommand: "",
   },
 };

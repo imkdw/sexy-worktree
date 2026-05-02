@@ -32,7 +32,6 @@ describe("saveRepositoryConfig", () => {
         filesToCopy: [".env.local"],
         installCommand: "pnpm install",
         initCommands: ["pnpm build"],
-        defaultStartupCommand: "pnpm dev",
       },
       jira: {
         enabled: true,

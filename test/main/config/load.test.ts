@@ -30,7 +30,6 @@ describe("loadRepoConfig", () => {
           filesToCopy: [".env.local"],
           installCommand: "pnpm install",
           initCommands: ["pnpm build"],
-          defaultStartupCommand: "c",
         },
       })
     );

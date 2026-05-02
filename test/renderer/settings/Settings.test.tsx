@@ -30,7 +30,6 @@ const repoConfig: RepoConfigDto = {
     filesToCopy: [],
     installCommand: "true",
     initCommands: [],
-    defaultStartupCommand: "",
   },
   branchValidation: { requireJiraPattern: true },
 };
@@ -111,9 +110,11 @@ async function flush(): Promise<void> {
 }
 
 function byTextButton(label: string): HTMLButtonElement {
-  const button = [...document.querySelectorAll("button")].find(
-    (el) => el.textContent?.trim() === label
-  );
+  const normalize = (value: string): string => value.replace(/\s+/g, " ").trim();
+  const button = [...document.querySelectorAll("button")].find((el) => {
+    const text = normalize(el.textContent ?? "");
+    return text === label || text.startsWith(label);
+  });
   if (!button) throw new Error(`button not found: ${label}`);
   return button;
 }
@@ -409,7 +410,7 @@ describe("Settings repository modal", () => {
     await setControl("#settings-token", "ATATT-token");
     await clickButton("Save");
 
-    expect(document.body.textContent).toContain("Saving...");
+    expect(document.body.textContent).toContain("Saving");
     expect(api.config.saveRepository).toHaveBeenCalledWith({
       repoPath: "/repo",
       config: expect.objectContaining({

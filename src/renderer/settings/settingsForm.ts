@@ -7,7 +7,6 @@ export type RepositorySettingsForm = {
     filesToCopyText: string;
     installCommand: string;
     initCommandsText: string;
-    defaultStartupCommand: string;
   };
   jira: {
     enabled: boolean;
@@ -39,7 +38,6 @@ export function formFromConfig(
       filesToCopyText: arrayToLines(config.worktree.filesToCopy),
       installCommand: config.worktree.installCommand,
       initCommandsText: arrayToLines(config.worktree.initCommands),
-      defaultStartupCommand: config.worktree.defaultStartupCommand,
     },
     jira: {
       enabled: config.jira?.enabled ?? false,
@@ -63,7 +61,6 @@ export function normalizeRepositorySettingsForm(
       filesToCopy: linesToArray(form.worktree.filesToCopyText),
       installCommand: form.worktree.installCommand.trim(),
       initCommands: linesToArray(form.worktree.initCommandsText),
-      defaultStartupCommand: form.worktree.defaultStartupCommand.trim(),
     },
   };
 

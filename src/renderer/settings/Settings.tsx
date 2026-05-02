@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FolderOpen, GitBranch, KeyRound, Plug, Rocket } from "lucide-react";
+import { FolderOpen, GitBranch, KeyRound, Loader2, Plug, Save, X } from "lucide-react";
 import { Dialog, Label } from "../ui";
 import { Icon, type LucideIcon } from "../icons/Icon";
 import { cn } from "../lib/cn";
@@ -15,12 +15,7 @@ import {
 
 type Props = { open: boolean; onClose: () => void };
 
-type SettingsSection =
-  | "worktree-paths"
-  | "worktree-bootstrap"
-  | "worktree-startup"
-  | "jira-connection"
-  | "jira-token";
+type SettingsSection = "worktree-paths" | "worktree-bootstrap" | "jira-connection" | "jira-token";
 
 type SettingsNavItem = {
   section: SettingsSection;
@@ -41,12 +36,6 @@ const WORKTREE_NAV_ITEMS: SettingsNavItem[] = [
     label: "Bootstrap",
     description: "Copy, install, init",
     icon: GitBranch,
-  },
-  {
-    section: "worktree-startup",
-    label: "Startup",
-    description: "Default terminal command",
-    icon: Rocket,
   },
 ];
 
@@ -126,7 +115,7 @@ function SettingsNavButton({
         "group flex w-full items-start gap-3 rounded-md border px-3 py-3 text-left transition-colors duration-150",
         active
           ? "border-accent-soft bg-surface text-text-primary"
-          : "border-transparent text-text-secondary hover:bg-surface"
+          : "text-text-secondary hover:bg-surface border-transparent"
       )}
       onClick={onClick}
       type="button"
@@ -134,9 +123,7 @@ function SettingsNavButton({
       <span
         className={cn(
           "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-sm transition-colors duration-150",
-          active
-            ? "bg-elevated text-text-primary"
-            : "text-text-muted group-hover:text-text-primary"
+          active ? "bg-elevated text-text-primary" : "text-text-muted group-hover:text-text-primary"
         )}
       >
         <Icon icon={item.icon} size={14} />
@@ -485,20 +472,6 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
       );
     }
 
-    if (section === "worktree-startup") {
-      return (
-        <Field id="settings-worktree-default-startup-command" label="Default Startup Command">
-          <input
-            id="settings-worktree-default-startup-command"
-            className={INPUT_CLASS}
-            value={form.worktree.defaultStartupCommand}
-            onChange={(e) => updateWorktree({ defaultStartupCommand: e.target.value })}
-            disabled={busy}
-          />
-        </Field>
-      );
-    }
-
     if (section === "jira-connection") {
       return (
         <div className="flex flex-col gap-4">
@@ -634,22 +607,29 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
               </div>
             )}
             <Dialog.Footer>
-              <div className="border-border-subtle flex justify-end gap-3 border-t p-4">
+              <div className="border-border-subtle bg-background flex min-h-16 w-full items-center justify-end gap-3 border-t px-6 py-4">
                 <button
-                  className="text-text-secondary hover:bg-elevated rounded-sm px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+                  className="border-border-strong bg-surface text-text-secondary hover:bg-elevated hover:text-text-primary inline-flex h-8 items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40"
                   onClick={onClose}
                   disabled={busy}
                   type="button"
                 >
+                  <Icon icon={X} size={14} />
                   Cancel
                 </button>
                 <button
-                  className="bg-accent text-background rounded-sm px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
+                  aria-busy={saving}
+                  className="bg-accent text-text-primary inline-flex h-8 min-w-24 items-center justify-center gap-2 rounded-md px-3 text-sm font-medium transition-opacity duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
                   onClick={() => void save()}
                   disabled={saveDisabled}
                   type="button"
                 >
-                  {saving ? "Saving..." : "Save"}
+                  {saving ? (
+                    <Icon icon={Loader2} className="animate-spin" size={14} />
+                  ) : (
+                    <Icon icon={Save} size={14} />
+                  )}
+                  {saving ? "Saving" : "Save"}
                 </button>
               </div>
             </Dialog.Footer>

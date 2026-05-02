@@ -44,7 +44,6 @@ describe("saveJiraConfig", () => {
       filesToCopy: [".env.local"],
       installCommand: "pnpm install",
       initCommands: ["pnpm build"],
-      defaultStartupCommand: "pnpm dev",
     };
     const branchValidation = { requireJiraPattern: true };
 
@@ -77,9 +76,7 @@ describe("saveJiraConfig", () => {
     expect(r.value.config.branchValidation).toEqual(branchValidation);
     expect(r.value.config.jira).toEqual(jira);
 
-    const saved = JSON.parse(
-      readFileSync(join(tmp, ".sexyworktree", "config.json"), "utf8")
-    ) as {
+    const saved = JSON.parse(readFileSync(join(tmp, ".sexyworktree", "config.json"), "utf8")) as {
       jira: typeof jira;
       worktree: typeof existingWorktree;
       branchValidation: typeof branchValidation;

@@ -339,37 +339,7 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
     prevWtKeysRef.current = currKeys;
   }, [worktreesByRepo, disposeWorktree, setTreeAndDiff]);
 
-  // 3) `app:worktree-created` 자동 시작 명령 처리
-  useEffect(() => {
-    const handler = (e: Event): void => {
-      const detail = (e as CustomEvent).detail as { worktreePath: string; repoPath: string };
-      const repo = repos.find((r) => r.path === detail.repoPath);
-      if (!repo) return;
-      const repoId = repo.id;
-      void (async () => {
-        const c = await api.config.get({ repoPath: detail.repoPath });
-        const cmd = c.ok ? c.value.config.worktree.defaultStartupCommand : "";
-        if (!cmd) return;
-        // 첫 PTY가 spawn될 때까지 폴링
-        for (let i = 0; i < 20; i++) {
-          const wk = wkey(repoId, detail.worktreePath);
-          const firstId = firstLeafIdsRef.current.get(wk);
-          if (firstId) {
-            const entry = entriesRef.current.get(lkey(repoId, detail.worktreePath, firstId));
-            if (entry?.ptyId) {
-              await api.pty.write({ id: entry.ptyId, data: cmd + "\n" });
-              return;
-            }
-          }
-          await new Promise((r) => setTimeout(r, 100));
-        }
-      })();
-    };
-    window.addEventListener("app:worktree-created", handler);
-    return () => window.removeEventListener("app:worktree-created", handler);
-  }, [repos]);
-
-  // 4) Provider unmount 시 pending save timers 정리 (HMR/테스트 안전)
+  // 3) Provider unmount 시 pending save timers 정리 (HMR/테스트 안전)
   useEffect(() => {
     const timers = saveTimersRef.current;
     return () => {

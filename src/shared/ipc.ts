@@ -38,7 +38,6 @@ export type RepoConfigDto = {
     filesToCopy: string[];
     installCommand: string;
     initCommands: string[];
-    defaultStartupCommand: string;
   };
   jira?: {
     enabled: boolean;

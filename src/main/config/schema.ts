@@ -8,7 +8,6 @@ export const repoConfigSchema = z.object({
     filesToCopy: z.array(z.string()).default([]),
     installCommand: z.string().min(1),
     initCommands: z.array(z.string()).default([]),
-    defaultStartupCommand: z.string().default(""),
   }),
   jira: z
     .discriminatedUnion("enabled", [
