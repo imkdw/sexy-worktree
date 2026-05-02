@@ -1,14 +1,12 @@
-import { randomUUID } from "node:crypto";
-import { lstat, mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { lstat } from "node:fs/promises";
 import { dirname } from "node:path";
 import { ok, err, type Result } from "@shared/result";
-import { repoConfigSchema, type RepoConfig } from "./schema";
+import type { RepoConfig } from "./schema";
 import { loadRepoConfig, type ConfigLoadError } from "./load";
 import { repoConfigPath } from "./path";
+import { saveRepositoryConfig, type SaveRepositoryConfigError } from "./saveRepository";
 
-export type SaveJiraConfigError =
-  | ConfigLoadError
-  | { kind: "write-failed"; message: string };
+export type SaveJiraConfigError = ConfigLoadError | SaveRepositoryConfigError;
 
 export type SaveJiraConfigInput = {
   repoPath: string;
@@ -17,9 +15,7 @@ export type SaveJiraConfigInput = {
 
 export async function saveJiraConfig(
   args: SaveJiraConfigInput
-): Promise<
-  Result<{ config: RepoConfig; configPath: string }, SaveJiraConfigError>
-> {
+): Promise<Result<{ config: RepoConfig; configPath: string }, SaveJiraConfigError>> {
   const configPath = repoConfigPath(args.repoPath);
   const configDir = dirname(configPath);
   const loaded = await loadRepoConfig(args.repoPath);
@@ -48,27 +44,8 @@ export async function saveJiraConfig(
     jira: args.jira,
   };
 
-  const parsed = repoConfigSchema.safeParse(nextConfig);
-  if (!parsed.success) {
-    return err({
-      kind: "invalid",
-      issues: parsed.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`),
-    });
-  }
+  const saved = await saveRepositoryConfig({ repoPath: args.repoPath, config: nextConfig });
+  if (!saved.ok) return err(saved.error);
 
-  let tempPath: string | undefined;
-
-  try {
-    await mkdir(configDir, { recursive: true });
-    tempPath = `${configPath}.${randomUUID()}.tmp`;
-    await writeFile(tempPath, `${JSON.stringify(parsed.data, null, 2)}\n`, "utf8");
-    await rename(tempPath, configPath);
-  } catch (error) {
-    if (tempPath !== undefined) {
-      await rm(tempPath, { force: true }).catch(() => undefined);
-    }
-    return err({ kind: "write-failed", message: (error as Error).message });
-  }
-
-  return ok({ config: parsed.data, configPath });
+  return ok(saved.value);
 }
