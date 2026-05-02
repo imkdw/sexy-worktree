@@ -7,29 +7,18 @@ export function PreflightNotice({
   onOpenSettings: () => void;
 }): React.JSX.Element {
   return (
-    <div
-      style={{
-        padding: "var(--spacing-3)",
-        border: "1px solid var(--color-in-progress)",
-        borderRadius: "var(--radius-md)",
-        color: "var(--color-text-secondary)",
-        display: "flex",
-        alignItems: "flex-start",
-        gap: "var(--spacing-3)",
-      }}
-    >
+    <div className="border-in-progress text-text-secondary flex items-start gap-3 rounded-md border p-3">
       <Icon icon={AlertTriangle} size={16} />
-      <div style={{ flex: 1 }}>
-        <div style={{ color: "var(--color-text-primary)", fontWeight: 500, marginBottom: 4 }}>
-          Setup Jira to enable
-        </div>
-        <div style={{ fontSize: "var(--text-xs)", color: "var(--color-text-muted)" }}>
+      <div className="flex-1">
+        <div className="text-text-primary mb-1 font-medium">Setup Jira to enable</div>
+        <div className="text-text-muted text-xs">
           Add workspace URL, email, and API token in Settings.
         </div>
       </div>
       <button
+        type="button"
         onClick={onOpenSettings}
-        className="text-text-secondary hover:bg-elevated rounded-sm px-3 py-2 text-sm"
+        className="text-text-secondary hover:bg-elevated inline-flex items-center gap-1 rounded-sm px-3 py-2 text-sm"
       >
         Settings <Icon icon={ArrowRight} size={12} />
       </button>
