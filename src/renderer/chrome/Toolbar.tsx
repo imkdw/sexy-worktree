@@ -36,31 +36,35 @@ export function Toolbar({
     <div className="border-border-subtle bg-background flex h-[var(--toolbar-h)] items-center justify-between border-b px-4">
       <div className="text-text-muted flex items-center gap-3 text-sm">
         <span className="text-sm">{repoPath}</span>
-        <span className="text-text-secondary">· {worktreeCount} worktrees</span>
-        {selectableCount > 0 && (
+        <span className="border-border-subtle h-4 border-l" aria-hidden="true" />
+        <span className="text-text-secondary">{worktreeCount} worktrees</span>
+        {sm.enabled && (
           <>
-            <span className="text-text-secondary">·</span>
+            <span className="border-border-subtle h-4 border-l" aria-hidden="true" />
             <span className="text-text-secondary text-sm">{selectableCount} selected</span>
-            <Tooltip label="Clear selection (Esc)">
+            <Tooltip label="Cancel selection (Esc)">
               <button
-                aria-label="Clear selection"
+                aria-label="Cancel selection mode"
                 className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-6 w-6 items-center justify-center rounded-sm transition-colors duration-150"
-                onClick={() => sm.clear()}
+                onClick={() => sm.exit()}
               >
                 <Icon icon={X} size={14} />
               </button>
             </Tooltip>
             <Tooltip label="Force delete selected">
-              <button
-                aria-label="Force delete selected worktrees"
-                className={cn(
-                  "bg-destructive text-background inline-flex h-7 items-center gap-1 rounded-sm px-2 text-xs font-medium transition-opacity duration-150 hover:opacity-90"
-                )}
-                onClick={() => onForceDelete?.()}
-              >
-                <Icon icon={Trash2} size={14} />
-                Force Delete
-              </button>
+              <span className="inline-flex h-8">
+                <button
+                  aria-label="Force delete selected worktrees"
+                  className={cn(
+                    "bg-destructive text-background inline-flex h-8 items-center gap-1 rounded-sm px-2 text-xs font-medium transition-opacity duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  )}
+                  disabled={selectableCount === 0}
+                  onClick={() => onForceDelete?.()}
+                >
+                  <Icon icon={Trash2} size={14} />
+                  Force Delete
+                </button>
+              </span>
             </Tooltip>
           </>
         )}
@@ -84,6 +88,7 @@ export function Toolbar({
         </ToggleGroup.Root>
         <Tooltip label="New Worktree (⌘N)">
           <button
+            aria-label="New worktree"
             className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150"
             onClick={onNewWorktree}
           >

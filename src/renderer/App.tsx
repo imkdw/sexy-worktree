@@ -43,17 +43,17 @@ function Shell(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
-    sm.clear();
+    sm.exit();
     // activeRepoId 변경 시에만 실행
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRepoId]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
-      if (e.key !== "Escape" || sm.selected.size === 0) return;
+      if (e.key !== "Escape" || !sm.enabled) return;
       // Radix Dialog 가 열려 있으면 모달이 Esc 를 먼저 처리하도록 양보
       if (document.querySelector('[role="dialog"][data-state="open"]')) return;
-      sm.clear();
+      sm.exit();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
