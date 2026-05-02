@@ -1,4 +1,4 @@
-import { LayoutGrid, Maximize2, Plus, Trash2, X } from "lucide-react";
+import { LayoutGrid, Maximize2, Plus, Settings as SettingsIcon, Trash2, X } from "lucide-react";
 import { Icon } from "../icons/Icon";
 import { useSelectMode } from "../state/selectMode";
 import { useWorktrees } from "../state/worktrees";
@@ -13,6 +13,7 @@ type ToolbarProps = {
   mode: Mode;
   onModeChange?: (m: Mode) => void;
   onNewWorktree?: () => void;
+  onOpenSettings?: () => void;
   onForceDelete?: () => void;
 };
 
@@ -22,6 +23,7 @@ export function Toolbar({
   mode,
   onModeChange,
   onNewWorktree,
+  onOpenSettings,
   onForceDelete,
 }: ToolbarProps): React.JSX.Element {
   const sm = useSelectMode();
@@ -86,6 +88,16 @@ export function Toolbar({
             onClick={onNewWorktree}
           >
             <Icon icon={Plus} />
+          </button>
+        </Tooltip>
+        <Tooltip label={repoPath ? "Settings (⌘,)" : "Open a repo first"}>
+          <button
+            aria-label="Open settings"
+            className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={!repoPath}
+            onClick={onOpenSettings}
+          >
+            <Icon icon={SettingsIcon} />
           </button>
         </Tooltip>
       </div>

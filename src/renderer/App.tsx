@@ -70,6 +70,7 @@ function Shell(): React.JSX.Element {
         mode={mode}
         onModeChange={setMode}
         onNewWorktree={() => setModalOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
         onForceDelete={() => setConfirmDeleteOpen(true)}
       />
       <div className="flex min-h-0 flex-1">
