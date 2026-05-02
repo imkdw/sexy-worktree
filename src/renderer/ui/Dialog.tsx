@@ -54,10 +54,20 @@ function Footer({ children }: { children: ReactNode }): React.JSX.Element {
   return <div className="flex justify-end gap-3">{children}</div>;
 }
 
-function Close(): React.JSX.Element {
+function Close({
+  disabled = false,
+  ariaLabel = "Close",
+}: {
+  disabled?: boolean;
+  ariaLabel?: string;
+}): React.JSX.Element {
   return (
     <RadixDialog.Close asChild>
-      <button className="text-text-muted hover:text-text-primary">
+      <button
+        aria-label={ariaLabel}
+        className="text-text-muted hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+        disabled={disabled}
+      >
         <Icon icon={X} size={16} />
       </button>
     </RadixDialog.Close>
