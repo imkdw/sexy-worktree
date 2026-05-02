@@ -8,19 +8,19 @@ const Root = RadixDialog.Root;
 
 type ContentProps = {
   children: ReactNode;
-  size?: "normal" | "wide";
+  size?: "normal" | "wide" | "settings";
   className?: string;
 };
 
 function Content({ children, size = "normal", className }: ContentProps): React.JSX.Element {
   return (
     <RadixDialog.Portal>
-      <RadixDialog.Overlay className="fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm" />
+      <RadixDialog.Overlay className="dialog-overlay-backdrop fixed inset-0 z-[1000] backdrop-blur-sm" />
       <RadixDialog.Content
         aria-describedby={undefined}
         className={cn(
           "border-border-subtle bg-surface fixed top-1/2 left-1/2 z-[1000] flex max-w-[95vw] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-lg border p-6",
-          size === "normal" ? "w-modal" : "w-modal-wide",
+          size === "normal" ? "w-modal" : size === "wide" ? "w-modal-wide" : "dialog-settings-size",
           className
         )}
       >

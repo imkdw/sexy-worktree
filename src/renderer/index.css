@@ -66,9 +66,21 @@
 
 /* Custom utilities */
 @utility grid-card-rows {
-  grid-auto-rows: calc(
-    (100vh - var(--titlebar-h) - var(--tabbar-h) - var(--toolbar-h)) / 2
-  );
+  grid-auto-rows: calc((100vh - var(--titlebar-h) - var(--tabbar-h) - var(--toolbar-h)) / 2);
+}
+
+@utility dialog-settings-size {
+  width: min(980px, 95vw);
+  height: min(680px, 90vh);
+  padding: 0;
+}
+
+@utility settings-nav-width {
+  width: 232px;
+}
+
+@utility dialog-overlay-backdrop {
+  background: rgba(0, 0, 0, 0.6);
 }
 
 /* Scrollbar utilities */
