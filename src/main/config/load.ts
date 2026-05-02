@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { ok, err, type Result } from "@shared/result";
 import { repoConfigSchema, type RepoConfig } from "./schema";
 import { DEFAULT_CONFIG } from "./defaults";
+import { repoConfigPath } from "./path";
 
 export type ConfigLoadError =
   | { kind: "invalid"; issues: string[] }
@@ -16,7 +16,7 @@ export type LoadedConfig = {
 export async function loadRepoConfig(
   repoPath: string
 ): Promise<Result<LoadedConfig, ConfigLoadError>> {
-  const file = join(repoPath, ".sexyworktree", "config.json");
+  const file = repoConfigPath(repoPath);
   let raw: string;
   try {
     raw = await readFile(file, "utf8");

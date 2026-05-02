@@ -28,6 +28,8 @@ export type ConfigError =
   | { kind: "invalid"; issues: string[] }
   | { kind: "unreadable"; message: string };
 
+export type ConfigSaveError = ConfigError | { kind: "write-failed"; message: string };
+
 export type RepoConfigDto = {
   version: 1;
   worktree: {
@@ -105,6 +107,18 @@ export type IpcChannels = {
   "config:get": {
     in: { repoPath: string };
     out: Result<{ config: RepoConfigDto; source: "file" | "defaults" }, ConfigError>;
+  };
+  "config:saveJira": {
+    in: {
+      repoPath: string;
+      jira: {
+        enabled: true;
+        workspaceUrl: string;
+        email: string;
+        tokenKeychainKey: string;
+      };
+    };
+    out: Result<{ config: RepoConfigDto; configPath: string }, ConfigSaveError>;
   };
   "pty:spawn": {
     in: PtySpawnArgs;
