@@ -2,6 +2,7 @@ export type ShortcutAction =
   | "mode-toggle"
   | "new-worktree"
   | "open-repo"
+  | "open-settings"
   | "split-v"
   | "split-h"
   | "close-pane"
@@ -18,6 +19,7 @@ export function matchShortcut(e: KeyInfo): ShortcutAction | null {
   if (!e.metaKey) return null;
   const k = e.key.toLowerCase();
   if (k === ".") return "mode-toggle";
+  if (k === ",") return "open-settings";
   if (k === "n" && !e.shiftKey) return "new-worktree";
   if (k === "o" && !e.shiftKey) return "open-repo";
   if (k === "w" && !e.shiftKey) return "close-pane";

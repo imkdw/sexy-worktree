@@ -13,7 +13,7 @@ import { matchShortcut, type ShortcutAction } from "./shortcutMap";
  */
 export function KeyboardShortcuts(): null {
   const { toggle: toggleMode } = useMode();
-  const { openRepo } = useRepos();
+  const { openRepo, activeRepoId } = useRepos();
   const { worktrees, activeId, setActive } = useWorktrees();
 
   useEffect(() => {
@@ -32,6 +32,10 @@ export function KeyboardShortcuts(): null {
           break;
         case "new-worktree":
           window.dispatchEvent(new CustomEvent("app:new-worktree"));
+          break;
+        case "open-settings":
+          if (!activeRepoId) break;
+          window.dispatchEvent(new CustomEvent("app:open-settings"));
           break;
         case "next-worktree":
         case "prev-worktree": {
@@ -63,7 +67,7 @@ export function KeyboardShortcuts(): null {
     }
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [toggleMode, openRepo, worktrees, activeId, setActive]);
+  }, [toggleMode, openRepo, activeRepoId, worktrees, activeId, setActive]);
 
   return null;
 }

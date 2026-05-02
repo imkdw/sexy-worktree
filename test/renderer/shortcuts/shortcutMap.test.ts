@@ -50,3 +50,27 @@ describe("matchShortcut", () => {
     expect(matchShortcut(ev({ key: "d" }))).toBe(null);
   });
 });
+
+describe("matchShortcut — open-settings (⌘,)", () => {
+  it("⌘, → open-settings 로 매핑된다", () => {
+    expect(matchShortcut(ev({ key: ",", metaKey: true }))).toBe<ShortcutAction>("open-settings");
+  });
+
+  it("⌘⇧, → open-settings 로 매핑된다 (shift 가드 없음, 표준 macOS 일관)", () => {
+    expect(matchShortcut(ev({ key: ",", metaKey: true, shiftKey: true }))).toBe<ShortcutAction>(
+      "open-settings"
+    );
+  });
+
+  it("metaKey 없이 , 만 누르면 매핑되지 않는다", () => {
+    expect(matchShortcut(ev({ key: "," }))).toBe(null);
+  });
+
+  it("회귀 — ⌘. 는 여전히 mode-toggle 로 매핑된다", () => {
+    expect(matchShortcut(ev({ key: ".", metaKey: true }))).toBe<ShortcutAction>("mode-toggle");
+  });
+
+  it("회귀 — ⌘N 은 여전히 new-worktree 로 매핑된다", () => {
+    expect(matchShortcut(ev({ key: "n", metaKey: true }))).toBe<ShortcutAction>("new-worktree");
+  });
+});
