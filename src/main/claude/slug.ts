@@ -1,7 +1,6 @@
 import { ok, err, type Result } from "@shared/result";
 import { spawn } from "node:child_process";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 /**
  * @anthropic-ai/claude-code는 JS 모듈이 아니라 컴파일된 바이너리 CLI다.
@@ -10,10 +9,17 @@ import { fileURLToPath } from "node:url";
  * 따라서 `-p`(--print) 플래그와 `--output-format json` 옵션으로 자식 프로세스를 띄워 호출한다.
  */
 
-const CLAUDE_BIN = resolve(
-  fileURLToPath(new URL("../../..", import.meta.url)),
-  "node_modules/.bin/claude"
-);
+const require = createRequire(import.meta.url);
+const CLAUDE_PACKAGE_BIN = "@anthropic-ai/claude-code/bin/claude.exe";
+
+export function resolveClaudeBinaryPath(args: {
+  requireResolve?: (id: string) => string;
+} = {}): string {
+  const requireResolve = args.requireResolve ?? ((id: string) => require.resolve(id));
+  return requireResolve(CLAUDE_PACKAGE_BIN);
+}
+
+const CLAUDE_BIN = resolveClaudeBinaryPath();
 
 const PROMPT = (ticketKey: string, summary: string): string => `
 You are converting a Jira ticket title into an English kebab-case branch slug.
