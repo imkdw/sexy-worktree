@@ -12,52 +12,23 @@ type Props = {
   requireJiraPattern: boolean;
   submitError: string | null;
   onSubmit: (branch: string) => Promise<{ ok: true } | { ok: false; message: string }>;
-  onCancel: () => void;
   onClearSubmitError: () => void;
   onOpenSettings: () => void;
+  onBranchPreviewChange?: (branch: string) => void;
+  onCanCreateChange?: (canCreate: boolean) => void;
+  onRequestSubmitChange?: (submit: (() => void) | null) => void;
 };
-
-function JiraActions({
-  busy,
-  canCreate,
-  onCancel,
-  onCreate,
-}: {
-  busy: boolean;
-  canCreate: boolean;
-  onCancel: () => void;
-  onCreate: () => void;
-}): React.JSX.Element {
-  return (
-    <div className="flex items-center justify-end gap-3">
-      <button
-        type="button"
-        className="text-text-secondary hover:bg-elevated rounded-sm px-3 py-2 text-sm"
-        onClick={onCancel}
-        disabled={busy}
-      >
-        Cancel
-      </button>
-      <button
-        type="button"
-        className="bg-accent text-background rounded-sm px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
-        disabled={!canCreate || busy}
-        onClick={onCreate}
-      >
-        {busy ? "Creating..." : "Create"}
-      </button>
-    </div>
-  );
-}
 
 export function JiraTab({
   busy,
   requireJiraPattern,
   submitError,
   onSubmit,
-  onCancel,
   onClearSubmitError,
   onOpenSettings,
+  onBranchPreviewChange,
+  onCanCreateChange,
+  onRequestSubmitChange,
 }: Props): React.JSX.Element {
   const { activeRepoId } = useRepos();
   const [jiraEnabled, setJiraEnabled] = useState<boolean | null>(null);
@@ -92,33 +63,6 @@ export function JiraTab({
     })();
   }, [activeRepoId]);
 
-  if (jiraEnabled === false || tokenPresent === false) {
-    return (
-      <div className="flex flex-col gap-4">
-        <PreflightNotice onOpenSettings={onOpenSettings} />
-        <JiraActions
-          busy={busy}
-          canCreate={false}
-          onCancel={onCancel}
-          onCreate={() => undefined}
-        />
-      </div>
-    );
-  }
-  if (jiraEnabled === null) {
-    return (
-      <div className="flex flex-col gap-4">
-        <div className="text-text-muted">Loading...</div>
-        <JiraActions
-          busy={busy}
-          canCreate={false}
-          onCancel={onCancel}
-          onCreate={() => undefined}
-        />
-      </div>
-    );
-  }
-
   async function resolve(): Promise<void> {
     if (!activeRepoId || !ticketInput) return;
     setResolving(true);
@@ -140,6 +84,41 @@ export function JiraTab({
 
   const branchValue = editingBranch ? draftBranch : (resolved?.branch ?? "");
   const branchValid = validateBranchName(branchValue, { requireJiraPattern });
+  const canCreate = !!resolved && branchValid.ok && !busy;
+
+  useEffect(() => {
+    onBranchPreviewChange?.(branchValue);
+  }, [branchValue, onBranchPreviewChange]);
+
+  useEffect(() => {
+    onCanCreateChange?.(canCreate);
+  }, [canCreate, onCanCreateChange]);
+
+  useEffect(() => {
+    if (!canCreate) {
+      onRequestSubmitChange?.(null);
+      return;
+    }
+    onRequestSubmitChange?.(() => {
+      void onSubmit(branchValue);
+    });
+    return () => onRequestSubmitChange?.(null);
+  }, [branchValue, canCreate, onRequestSubmitChange, onSubmit]);
+
+  if (jiraEnabled === false || tokenPresent === false) {
+    return (
+      <div className="flex flex-col gap-4">
+        <PreflightNotice onOpenSettings={onOpenSettings} />
+      </div>
+    );
+  }
+  if (jiraEnabled === null) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="text-text-muted">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -205,13 +184,6 @@ export function JiraTab({
           <span className="text-text-muted text-xs">{resolved.summary}</span>
         </div>
       )}
-
-      <JiraActions
-        busy={busy}
-        canCreate={!!resolved && branchValid.ok}
-        onCancel={onCancel}
-        onCreate={() => (resolved && branchValid.ok ? void onSubmit(branchValue) : undefined)}
-      />
     </div>
   );
 }

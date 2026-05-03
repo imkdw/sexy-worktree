@@ -112,7 +112,7 @@ async function setInput(selector: string, value: string): Promise<void> {
 
 async function clickButton(label: string): Promise<void> {
   const button = [...document.querySelectorAll("button")].find(
-    (el) => el.textContent?.trim() === label
+    (el) => el.getAttribute("aria-label") === label || el.textContent?.trim() === label
   );
   if (!button) throw new Error(`button not found: ${label}`);
 
@@ -229,11 +229,11 @@ describe("NewWorktreeModal", () => {
 
     expect(document.body.textContent).toContain("New Worktree");
     expect(document.body.textContent).toContain("Cancel");
-    expect(document.body.textContent).toContain("Create");
+    expect(document.body.textContent).toContain("Create Worktree");
     expect(document.body.textContent).not.toContain("Confirm");
 
     await setInput("#direct-branch", "feat-add-search");
-    await clickButton("Create");
+    await clickButton("Create Worktree");
     await flush();
 
     expect(api.newWorktree.create).toHaveBeenCalledWith({
@@ -241,6 +241,147 @@ describe("NewWorktreeModal", () => {
       branch: "feat-add-search",
     });
     expect(mounted.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables direct create and shows inline validation for an invalid direct branch", async () => {
+    const api = makeApi();
+    const mounted = await mountModal(api);
+    cleanup = mounted.unmount;
+
+    await setInput("#direct-branch", "feat add search");
+    await flush();
+
+    const createButton = [...document.querySelectorAll("button")].find(
+      (el): el is HTMLButtonElement => el.textContent?.trim() === "Create Worktree"
+    );
+
+    expect(createButton?.disabled).toBe(true);
+    expect(document.body.textContent).toContain("Branch name cannot contain spaces.");
+    expect(api.newWorktree.create).not.toHaveBeenCalled();
+  });
+
+  it("renders method cards with selected state instead of document tabs", async () => {
+    const api = makeApi();
+    const mounted = await mountModal(api);
+    cleanup = mounted.unmount;
+
+    const direct = [...document.querySelectorAll("button")].find(
+      (el): el is HTMLButtonElement => el.textContent?.includes("Direct") ?? false
+    );
+    const jira = [...document.querySelectorAll("button")].find(
+      (el): el is HTMLButtonElement => el.textContent?.includes("From Jira") ?? false
+    );
+
+    expect(direct).toBeTruthy();
+    expect(jira).toBeTruthy();
+    expect(direct?.getAttribute("aria-pressed")).toBe("true");
+    expect(jira?.getAttribute("aria-pressed")).toBe("false");
+    expect(document.querySelector('[role="tablist"]')).toBeNull();
+
+    await clickButton("From Jira");
+
+    expect(direct?.getAttribute("aria-pressed")).toBe("false");
+    expect(jira?.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("gives the method selector its own padded control group surface", async () => {
+    const api = makeApi();
+    const mounted = await mountModal(api);
+    cleanup = mounted.unmount;
+
+    const selector = document.querySelector<HTMLDivElement>(
+      '[aria-label="Worktree creation method"]'
+    );
+    const direct = document.querySelector<HTMLButtonElement>('button[aria-label="Direct"]');
+    const jira = document.querySelector<HTMLButtonElement>('button[aria-label="From Jira"]');
+
+    expect(selector?.classList.contains("bg-background")).toBe(true);
+    expect(selector?.classList.contains("p-2")).toBe(true);
+    expect(selector?.classList.contains("gap-2")).toBe(true);
+    expect(direct?.classList.contains("p-4")).toBe(true);
+    expect(jira?.classList.contains("p-4")).toBe(true);
+  });
+
+  it("shows create summary and updates target path from Direct branch input", async () => {
+    const api = makeApi();
+    const mounted = await mountModal(api);
+    cleanup = mounted.unmount;
+
+    expect(document.body.textContent).toContain("Base branch");
+    expect(document.body.textContent).toContain("main");
+    expect(document.body.textContent).toContain("Worktree directory");
+    expect(document.body.textContent).toContain("../worktrees");
+    expect(document.body.textContent).not.toContain("../worktrees/feat-add-search");
+
+    await setInput("#direct-branch", "feat-add-search");
+    await flush();
+
+    expect(document.body.textContent).toContain("Target path");
+    expect(document.body.textContent).toContain("../worktrees/feat-add-search");
+  });
+
+  it("keeps direct create state when the selected Direct method is clicked again", async () => {
+    const api = makeApi();
+    const mounted = await mountModal(api);
+    cleanup = mounted.unmount;
+
+    await setInput("#direct-branch", "feat-add-search");
+    await flush();
+
+    let createButton = [...document.querySelectorAll("button")].find(
+      (el): el is HTMLButtonElement => el.textContent?.trim() === "Create Worktree"
+    );
+    expect(document.body.textContent).toContain("../worktrees/feat-add-search");
+    expect(createButton?.disabled).toBe(false);
+
+    await clickButton("Direct");
+    await flush();
+
+    createButton = [...document.querySelectorAll("button")].find(
+      (el): el is HTMLButtonElement => el.textContent?.trim() === "Create Worktree"
+    );
+    expect(document.body.textContent).toContain("../worktrees/feat-add-search");
+    expect(createButton?.disabled).toBe(false);
+  });
+
+  it("updates the summary target path from Jira resolved and edited branch previews", async () => {
+    const api = makeApi({
+      config: {
+        get: vi.fn().mockResolvedValue(ok({ config: jiraConfig, source: "file" as const })),
+        saveJira: vi.fn(),
+        saveRepository: vi.fn(),
+      },
+      secrets: {
+        get: vi.fn().mockResolvedValue(ok({ value: "token" })),
+        set: vi.fn(),
+        remove: vi.fn(),
+      },
+      jira: {
+        resolve: vi.fn().mockResolvedValue(
+          ok({
+            ticketKey: "PROJ-123",
+            summary: "Add search",
+            suggestedBranch: "PROJ-123-feat-add-search",
+          })
+        ),
+      },
+    });
+    const mounted = await mountModal(api);
+    cleanup = mounted.unmount;
+
+    await clickButton("From Jira");
+    await waitForInput("#jira-ticket");
+    await setInput("#jira-ticket", "PROJ-123");
+    await clickButton("Resolve");
+    await flush();
+
+    expect(document.body.textContent).toContain("../worktrees/PROJ-123-feat-add-search");
+
+    await clickButtonByLabel("Edit branch name");
+    await setInput("#jira-branch", "PROJ-123-feat-add-search-v2");
+    await flush();
+
+    expect(document.body.textContent).toContain("../worktrees/PROJ-123-feat-add-search-v2");
   });
 
   it("keeps the modal open and shows inline error when create is rejected", async () => {
@@ -257,7 +398,7 @@ describe("NewWorktreeModal", () => {
     cleanup = mounted.unmount;
 
     await setInput("#direct-branch", "feat-add-search");
-    await clickButton("Create");
+    await clickButton("Create Worktree");
     await flush();
 
     expect(mounted.onClose).not.toHaveBeenCalled();
@@ -275,16 +416,62 @@ describe("NewWorktreeModal", () => {
 
     expect(document.body.textContent).toContain("Settings");
     expect(document.body.textContent).toContain("Cancel");
-    expect(document.body.textContent).toContain("Create");
+    expect(document.body.textContent).toContain("Create Worktree");
 
     const createButton = [...document.querySelectorAll("button")].find(
-      (el): el is HTMLButtonElement => el.textContent?.trim() === "Create"
+      (el): el is HTMLButtonElement => el.textContent?.trim() === "Create Worktree"
     );
     expect(createButton?.disabled).toBe(true);
 
     await clickButton("Cancel");
 
     expect(mounted.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("enables Jira create after resolve succeeds with a valid branch preview", async () => {
+    const api = makeApi({
+      config: {
+        get: vi.fn().mockResolvedValue(ok({ config: jiraConfig, source: "file" as const })),
+        saveJira: vi.fn(),
+        saveRepository: vi.fn(),
+      },
+      secrets: {
+        get: vi.fn().mockResolvedValue(ok({ value: "token" })),
+        set: vi.fn(),
+        remove: vi.fn(),
+      },
+      jira: {
+        resolve: vi.fn().mockResolvedValue(
+          ok({
+            ticketKey: "PROJ-123",
+            summary: "Add search",
+            suggestedBranch: "PROJ-123-feat-add-search",
+          })
+        ),
+      },
+    });
+    const mounted = await mountModal(api);
+    cleanup = mounted.unmount;
+
+    await clickButton("From Jira");
+    await waitForInput("#jira-ticket");
+
+    let createButton = [...document.querySelectorAll("button")].find(
+      (el): el is HTMLButtonElement => el.textContent?.trim() === "Create Worktree"
+    );
+    expect(createButton?.disabled).toBe(true);
+
+    await setInput("#jira-ticket", "PROJ-123");
+    await clickButton("Resolve");
+    await flush();
+
+    createButton = [...document.querySelectorAll("button")].find(
+      (el): el is HTMLButtonElement => el.textContent?.trim() === "Create Worktree"
+    );
+    expect(document.querySelector<HTMLInputElement>("#jira-branch")?.value).toBe(
+      "PROJ-123-feat-add-search"
+    );
+    expect(createButton?.disabled).toBe(false);
   });
 
   it("shows Jira create failures inline without leaking into Direct inline errors", async () => {
@@ -325,7 +512,7 @@ describe("NewWorktreeModal", () => {
     await setInput("#jira-ticket", "PROJ-123");
     await clickButton("Resolve");
     await flush();
-    await clickButton("Create");
+    await clickButton("Create Worktree");
     await flush();
 
     expect(mounted.onClose).not.toHaveBeenCalled();
@@ -385,7 +572,7 @@ describe("NewWorktreeModal", () => {
     await setInput("#jira-ticket", "PROJ-123");
     await clickButton("Resolve");
     await flush();
-    await clickButton("Create");
+    await clickButton("Create Worktree");
     await flush();
 
     expect(mounted.onClose).not.toHaveBeenCalled();
@@ -397,7 +584,7 @@ describe("NewWorktreeModal", () => {
 
     expect(document.body.textContent).not.toContain("Cannot create worktree");
 
-    await clickButton("Create");
+    await clickButton("Create Worktree");
     await flush();
 
     expect(document.body.textContent).toContain("Cannot create worktree");
