@@ -26,7 +26,11 @@ export function Rail(): React.JSX.Element {
     : allSelected
       ? "Clear selected worktrees"
       : "Select all worktrees";
-  const collapseLabel = sm.enabled ? "Cancel selection mode before collapsing rail" : collapsed ? "Expand" : "Collapse";
+  const collapseLabel = sm.enabled
+    ? "Cancel selection mode before collapsing rail"
+    : collapsed
+      ? "Expand"
+      : "Collapse";
   const collapseAriaLabel = sm.enabled
     ? "Rail collapse disabled in selection mode"
     : collapsed
@@ -73,7 +77,7 @@ export function Rail(): React.JSX.Element {
               <span className="inline-flex h-8 w-8 shrink-0">
                 <button
                   aria-label={selectAllAriaLabel}
-                  className="text-text-muted hover:bg-surface hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors duration-150"
+                  className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40"
                   disabled={!hasSelectableWorktrees}
                   onClick={toggleAllSelectable}
                 >
@@ -151,7 +155,10 @@ export function Rail(): React.JSX.Element {
                     {isSelected && <Icon icon={Check} size={10} />}
                   </span>
                 ) : showSelectionPlaceholder ? (
-                  <span className="inline-block h-3.5 w-3.5 shrink-0 opacity-40" aria-hidden="true" />
+                  <span
+                    className="inline-block h-3.5 w-3.5 shrink-0 opacity-40"
+                    aria-hidden="true"
+                  />
                 ) : null)}
               <span
                 className={cn(
@@ -169,7 +176,7 @@ export function Rail(): React.JSX.Element {
           <span className="inline-flex h-8 w-8">
             <button
               aria-label={collapseAriaLabel}
-              className="text-text-muted hover:bg-surface hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-40 inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150"
+              className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40"
               disabled={sm.enabled}
               onClick={() => toggleCollapsed()}
             >
@@ -180,16 +187,31 @@ export function Rail(): React.JSX.Element {
       </div>
       <div
         role="separator"
+        aria-label="Resize rail"
         aria-orientation="vertical"
         onMouseDown={(e) => {
           if (asideRef.current) startDrag(e, asideRef.current);
         }}
         className={cn(
-          "absolute top-0 right-0 h-full w-1 cursor-col-resize",
-          "hover:bg-border-strong",
-          isDragging && "bg-accent"
+          "group absolute top-0 right-0 h-full w-2 cursor-col-resize",
+          !isDragging && "transition-colors duration-150"
         )}
-      />
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "group-hover:bg-elevated pointer-events-none absolute top-0 right-0 h-full w-1 bg-transparent transition-colors duration-150",
+            isDragging && "bg-accent"
+          )}
+        />
+        <span
+          aria-hidden="true"
+          className={cn(
+            "bg-border-strong pointer-events-none absolute top-0 right-0 h-full w-px transition-colors duration-150",
+            isDragging && "bg-accent"
+          )}
+        />
+      </div>
     </aside>
   );
 }
