@@ -126,8 +126,8 @@ function LeafSlot({
   }, [entry]);
 
   const slotClass = cn(
-    "flex min-h-0 min-w-0 flex-1 flex-col",
-    focused && "outline-accent-soft outline outline-1 -outline-offset-1"
+    "flex min-h-0 min-w-0 flex-1 flex-col border border-transparent",
+    focused && "terminal-pane-focus-ring border-accent"
   );
 
   if (exit?.kind === "spawn-failed") {
@@ -255,11 +255,13 @@ function ExitedBanner({
  * 종료 직전 무엇이 출력됐는지 한 줄로 보여주려는 용도라 완벽하지 않아도 OK.
  */
 function lastTextLine(raw: string): string {
+  /* eslint-disable no-control-regex -- ANSI/OSC cleanup needs literal control-byte patterns. */
   const stripped = raw
     .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, "")
     .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
     .replace(/\x1b[()][AB012]/g, "")
     .replace(/[\x00-\x08\x0b-\x1f\x7f]/g, "");
+  /* eslint-enable no-control-regex */
   const lines = stripped.split(/\r?\n/).filter((l) => l.trim().length > 0);
   const last = lines[lines.length - 1] ?? "";
   return last.length > 200 ? last.slice(-200) : last;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { SplitSquareVertical, SplitSquareHorizontal, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Icon } from "../icons/Icon";
 import { PaneTree } from "./PaneTree";
 import { useTerminalSessions } from "../state/terminalSessions";
@@ -24,13 +24,7 @@ type CardProps = {
  * 페인 트리·터미널 인스턴스는 TerminalSessionsProvider가 소유하며,
  * 카드는 focusedId·단축키·UI 책임만 갖는다. Card unmount 시에도 풀은 보존된다.
  */
-export function Card({
-  repoId,
-  branch,
-  cwd,
-  active,
-  onActivate,
-}: CardProps): React.JSX.Element {
+export function Card({ repoId, branch, cwd, active, onActivate }: CardProps): React.JSX.Element {
   const ops = useTerminalSessions(repoId, cwd);
   const [focusedId, setFocusedId] = useState<string | null>(null);
 
@@ -94,28 +88,6 @@ export function Card({
           {branch}
         </span>
         <div className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-          <Tooltip label="Split Vertical (⌘D)">
-            <button
-              className="text-text-muted hover:text-accent inline-flex h-6 w-6 items-center justify-center rounded-sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSplit("vertical");
-              }}
-            >
-              <Icon icon={SplitSquareVertical} size={14} />
-            </button>
-          </Tooltip>
-          <Tooltip label="Split Horizontal (⌘⇧D)">
-            <button
-              className="text-text-muted hover:text-accent inline-flex h-6 w-6 items-center justify-center rounded-sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSplit("horizontal");
-              }}
-            >
-              <Icon icon={SplitSquareHorizontal} size={14} />
-            </button>
-          </Tooltip>
           <Tooltip label="Close pane (⌘W)">
             <button
               className="text-text-muted hover:text-accent inline-flex h-6 w-6 items-center justify-center rounded-sm"
@@ -133,7 +105,7 @@ export function Card({
         {ops.tree ? (
           <PaneTree
             tree={ops.tree}
-            focusedId={focusedId}
+            focusedId={active ? focusedId : null}
             getEntry={ops.getEntry}
             getExit={ops.getExit}
             onFocusLeaf={setFocusedId}
