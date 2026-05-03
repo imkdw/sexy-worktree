@@ -33,7 +33,7 @@ export function parseWorktreePorcelain(stdout: string): WorktreeInfo[] {
       return { path, branch, head, isMain: i === 0, prunable };
     })
     .filter((w) => !w.prunable)
-    .map(({ prunable: _p, ...w }) => w);
+    .map((w) => ({ path: w.path, branch: w.branch, head: w.head, isMain: w.isMain }));
 }
 
 export async function listWorktrees(repoPath: string): Promise<Result<WorktreeInfo[], GitError>> {
