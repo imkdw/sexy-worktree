@@ -15,7 +15,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   registerDialogHandlers(getWindow);
   registerRepoHandlers(getWindow);
   registerWorktreeHandlers();
-  registerWorktreeDeleteHandlers();
+  registerWorktreeDeleteHandlers(getWindow);
   registerConfigHandlers();
   registerPtyHandlers(getWindow);
   registerPaneHandlers();
