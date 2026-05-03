@@ -1,6 +1,7 @@
 import type { Result } from "./result";
 import type { PaneNode } from "./pane";
 import type { JobSnapshot, JobEvent } from "./newWorktree";
+import type { DeleteWorktreeJobEvent, DeleteWorktreeJobSnapshot } from "./deleteWorktree";
 
 export type RepoRow = {
   id: number;
@@ -107,6 +108,25 @@ export type IpcChannels = {
     in: { repoPath: string; worktreePath: string };
     out: Result<void, { message: string }>;
   };
+  "worktreeDelete:start": {
+    in: {
+      repoId: number;
+      targets: { worktreePath: string; branch: string | null }[];
+    };
+    out: Result<{ jobId: string }, { message: string }>;
+  };
+  "worktreeDelete:cancel": {
+    in: { jobId: string };
+    out: Result<void, { message: string }>;
+  };
+  "worktreeDelete:dismiss": {
+    in: { jobId: string };
+    out: Result<void, { message: string }>;
+  };
+  "worktreeDelete:list": {
+    in: { repoId: number };
+    out: Result<{ jobs: DeleteWorktreeJobSnapshot[] }, never>;
+  };
   "config:get": {
     in: { repoPath: string };
     out: Result<{ config: RepoConfigDto; source: "file" | "defaults" }, ConfigError>;
@@ -208,3 +228,4 @@ export type IpcIn<C extends IpcChannel> = IpcChannels[C]["in"];
 export type IpcOut<C extends IpcChannel> = IpcChannels[C]["out"];
 
 export type NewWorktreeJobEvent = JobEvent;
+export type WorktreeDeleteJobEvent = DeleteWorktreeJobEvent;
