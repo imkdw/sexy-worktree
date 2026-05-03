@@ -55,6 +55,13 @@ function makeApi(): ApiMock {
       list: vi.fn(),
       onEvent: vi.fn(),
     },
+    worktreeDelete: {
+      start: vi.fn(),
+      cancel: vi.fn(),
+      dismiss: vi.fn(),
+      list: vi.fn(),
+      onEvent: vi.fn().mockReturnValue(() => {}),
+    },
     secrets: {
       get: vi.fn(),
       set: vi.fn(),

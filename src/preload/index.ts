@@ -6,6 +6,7 @@ import type {
   PtyDataEvent,
   PtyExitEvent,
   NewWorktreeJobEvent,
+  WorktreeDeleteJobEvent,
 } from "@shared/ipc";
 
 type Invoker<C extends keyof IpcChannels> =
@@ -66,6 +67,17 @@ const api = {
       const fn = (_e: IpcRendererEvent, data: NewWorktreeJobEvent): void => cb(data);
       ipcRenderer.on("newWorktree:event", fn);
       return () => ipcRenderer.off("newWorktree:event", fn);
+    },
+  },
+  worktreeDelete: {
+    start: makeInvoker("worktreeDelete:start"),
+    cancel: makeInvoker("worktreeDelete:cancel"),
+    dismiss: makeInvoker("worktreeDelete:dismiss"),
+    list: makeInvoker("worktreeDelete:list"),
+    onEvent: (cb: (e: WorktreeDeleteJobEvent) => void) => {
+      const fn = (_e: IpcRendererEvent, data: WorktreeDeleteJobEvent): void => cb(data);
+      ipcRenderer.on("worktreeDelete:event", fn);
+      return () => ipcRenderer.off("worktreeDelete:event", fn);
     },
   },
   secrets: {

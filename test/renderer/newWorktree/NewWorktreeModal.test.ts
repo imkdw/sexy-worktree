@@ -76,6 +76,13 @@ function makeApi(overrides: Partial<ApiMock> = {}): ApiMock {
       list: vi.fn().mockResolvedValue(ok({ jobs: [] })),
       onEvent: vi.fn().mockReturnValue(() => {}),
     },
+    worktreeDelete: {
+      start: vi.fn(),
+      cancel: vi.fn(),
+      dismiss: vi.fn(),
+      list: vi.fn(),
+      onEvent: vi.fn().mockReturnValue(() => {}),
+    },
     secrets: {
       get: vi.fn(),
       set: vi.fn(),

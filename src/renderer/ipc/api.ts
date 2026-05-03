@@ -5,6 +5,7 @@ import type {
   PtyDataEvent,
   PtyExitEvent,
   NewWorktreeJobEvent,
+  WorktreeDeleteJobEvent,
 } from "@shared/ipc";
 
 type Invoker<C extends keyof IpcChannels> =
@@ -49,6 +50,13 @@ type Api = {
     cancel: Invoker<"newWorktree:cancel">;
     list: Invoker<"newWorktree:list">;
     onEvent: (cb: (e: NewWorktreeJobEvent) => void) => () => void;
+  };
+  worktreeDelete: {
+    start: Invoker<"worktreeDelete:start">;
+    cancel: Invoker<"worktreeDelete:cancel">;
+    dismiss: Invoker<"worktreeDelete:dismiss">;
+    list: Invoker<"worktreeDelete:list">;
+    onEvent: (cb: (e: WorktreeDeleteJobEvent) => void) => () => void;
   };
   secrets: {
     get: Invoker<"secrets:get">;
