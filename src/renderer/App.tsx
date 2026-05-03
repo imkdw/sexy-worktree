@@ -19,6 +19,8 @@ import { NoRepo } from "./empty/NoRepo";
 import { Settings } from "./settings/Settings";
 import { TooltipProvider } from "./ui";
 import { ConfirmDeleteModal } from "./selectMode/ConfirmDeleteModal";
+import { DeleteWorktreeProvider } from "./state/deleteWorktree";
+import { BackgroundJobsPanel } from "./backgroundJobs/BackgroundJobsPanel";
 
 function Shell(): React.JSX.Element {
   const { mode, setMode } = useMode();
@@ -75,9 +77,10 @@ function Shell(): React.JSX.Element {
       />
       <div className="flex min-h-0 flex-1">
         <Rail />
-        <main className="bg-background scrollbar-hidden flex-1 overflow-auto">
+        <main className="bg-background scrollbar-hidden min-w-0 flex-1 overflow-auto">
           {!activeRepoId ? <NoRepo /> : mode === "overview" ? <Grid /> : <Focus />}
         </main>
+        <BackgroundJobsPanel />
       </div>
       <ToastLayer />
       <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
@@ -93,15 +96,17 @@ export function App(): React.JSX.Element {
       <ToastProvider>
         <ReposProvider>
           <WorktreesProvider>
-            <TerminalSessionsProvider>
-              <NewWorktreeProvider>
-                <SelectModeProvider>
-                  <ModeProvider>
-                    <Shell />
-                  </ModeProvider>
-                </SelectModeProvider>
-              </NewWorktreeProvider>
-            </TerminalSessionsProvider>
+            <DeleteWorktreeProvider>
+              <TerminalSessionsProvider>
+                <NewWorktreeProvider>
+                  <SelectModeProvider>
+                    <ModeProvider>
+                      <Shell />
+                    </ModeProvider>
+                  </SelectModeProvider>
+                </NewWorktreeProvider>
+              </TerminalSessionsProvider>
+            </DeleteWorktreeProvider>
           </WorktreesProvider>
         </ReposProvider>
       </ToastProvider>
