@@ -71,6 +71,10 @@ export type PtySpawnError =
   | { kind: "unknown"; message: string };
 
 export type IpcChannels = {
+  "dialog:selectDirectory": {
+    in: { title: string; defaultPath?: string };
+    out: Result<{ path: string } | null, never>;
+  };
   "repo:openDialog": {
     in: void;
     out: Result<{ path: string } | null, never>;

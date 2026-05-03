@@ -11,6 +11,9 @@ type Invoker<C extends keyof IpcChannels> =
   IpcIn<C> extends void ? () => Promise<IpcOut<C>> : (input: IpcIn<C>) => Promise<IpcOut<C>>;
 
 type Api = {
+  dialog: {
+    selectDirectory: Invoker<"dialog:selectDirectory">;
+  };
   repo: {
     openDialog: Invoker<"repo:openDialog">;
     validate: Invoker<"repo:validate">;

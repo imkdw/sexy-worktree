@@ -37,6 +37,9 @@ const jiraConfig: RepoConfigDto = {
 
 function makeApi(overrides: Partial<ApiMock> = {}): ApiMock {
   return {
+    dialog: {
+      selectDirectory: vi.fn(),
+    },
     repo: {
       openDialog: vi.fn(),
       validate: vi.fn(),

@@ -46,6 +46,9 @@ const jiraConfig: RepoConfigDto = {
 
 function makeApi(overrides: Partial<ApiMock> = {}): ApiMock {
   return {
+    dialog: {
+      selectDirectory: vi.fn().mockResolvedValue(ok(null)),
+    },
     repo: {
       openDialog: vi.fn(),
       validate: vi.fn(),
@@ -127,6 +130,15 @@ async function clickButton(label: string): Promise<void> {
   });
 }
 
+async function clickButtonByLabel(label: string): Promise<void> {
+  const button = document.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+  if (!button) throw new Error(`button not found by aria-label: ${label}`);
+
+  await act(async () => {
+    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+  });
+}
+
 async function setControl(selector: string, value: string): Promise<void> {
   const control = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector);
   if (!control) throw new Error(`control not found: ${selector}`);
@@ -163,12 +175,14 @@ async function mountSettings(
   vi.resetModules();
   window.api = api;
 
-  const [{ ToastProvider }, { ReposProvider }, { Settings }, { ToastLayer }] = await Promise.all([
-    import("@renderer/state/toast"),
-    import("@renderer/state/repos"),
-    import("@renderer/settings/Settings"),
-    import("@renderer/toast/Toast"),
-  ]);
+  const [{ ToastProvider }, { ReposProvider }, { Settings }, { ToastLayer }, { TooltipProvider }] =
+    await Promise.all([
+      import("@renderer/state/toast"),
+      import("@renderer/state/repos"),
+      import("@renderer/settings/Settings"),
+      import("@renderer/toast/Toast"),
+      import("@renderer/ui"),
+    ]);
 
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -176,13 +190,17 @@ async function mountSettings(
 
   function App(): React.JSX.Element {
     return createElement(
-      ToastProvider as ComponentType<{ children: ReactNode }>,
+      TooltipProvider as ComponentType<{ children: ReactNode }>,
       null,
-      createElement(ToastLayer),
       createElement(
-        ReposProvider as ComponentType<{ children: ReactNode }>,
+        ToastProvider as ComponentType<{ children: ReactNode }>,
         null,
-        createElement(Settings, { open: true, onClose })
+        createElement(ToastLayer),
+        createElement(
+          ReposProvider as ComponentType<{ children: ReactNode }>,
+          null,
+          createElement(Settings, { open: true, onClose })
+        )
       )
     );
   }
@@ -248,6 +266,47 @@ describe("Settings repository modal", () => {
       }),
     });
     expect(api.config.saveJira).not.toHaveBeenCalled();
+    expect(mounted.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a native directory picker for the worktree base directory", async () => {
+    const api = makeApi({
+      dialog: {
+        selectDirectory: vi.fn().mockResolvedValue(ok({ path: "/Users/dev/worktrees" })),
+      },
+      secrets: {
+        get: vi.fn().mockResolvedValue(ok({ value: "stored-token" })),
+        set: vi.fn().mockResolvedValue(ok(undefined)),
+        remove: vi.fn().mockResolvedValue(ok(undefined)),
+      },
+    });
+    const mounted = await mountSettings(api);
+    cleanup = mounted.unmount;
+
+    const input = document.querySelector<HTMLInputElement>("#settings-worktree-base-dir");
+    expect(input?.readOnly).toBe(true);
+    expect(input?.value).toBe("../worktrees");
+
+    await clickButtonByLabel("Select worktree base directory");
+    await flush();
+
+    expect(api.dialog.selectDirectory).toHaveBeenCalledWith({
+      title: "Select Worktree Base Directory",
+      defaultPath: "/repo/../worktrees",
+    });
+    expect(input?.value).toBe("/Users/dev/worktrees");
+
+    await clickButton("Save");
+    await flush();
+
+    expect(api.config.saveRepository).toHaveBeenCalledWith({
+      repoPath: "/repo",
+      config: expect.objectContaining({
+        worktree: expect.objectContaining({
+          baseDir: "/Users/dev/worktrees",
+        }),
+      }),
+    });
     expect(mounted.onClose).toHaveBeenCalledTimes(1);
   });
 
@@ -554,11 +613,6 @@ describe("Settings repository modal", () => {
   });
 
   it.each([
-    {
-      selector: "#settings-worktree-base-dir",
-      section: "Paths",
-      message: "Enter a worktree base directory.",
-    },
     {
       selector: "#settings-worktree-default-base-branch",
       section: "Paths",

@@ -1,4 +1,5 @@
 import type { BrowserWindow } from "electron";
+import { registerDialogHandlers } from "./dialog";
 import { registerRepoHandlers } from "./repo";
 import { registerWorktreeHandlers } from "./worktree";
 import { registerConfigHandlers } from "./config";
@@ -11,6 +12,7 @@ import { registerWorktreeDeleteHandlers } from "./worktreeDelete";
 import { registerRecentsHandlers } from "./recents";
 
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
+  registerDialogHandlers(getWindow);
   registerRepoHandlers(getWindow);
   registerWorktreeHandlers();
   registerWorktreeDeleteHandlers();

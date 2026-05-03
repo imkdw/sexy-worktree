@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FolderOpen, GitBranch, KeyRound, Loader2, Plug, Save, X } from "lucide-react";
-import { Dialog, Label } from "../ui";
+import { Dialog, Label, Tooltip } from "../ui";
 import { Icon, type LucideIcon } from "../icons/Icon";
 import { cn } from "../lib/cn";
 import { api } from "../ipc/api";
@@ -73,6 +73,13 @@ function expectedConfigPath(repoPath: string): string {
 
 function defaultTokenKey(repoName: string): string {
   return `jira.${repoName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+}
+
+function defaultDirectoryPath(repoPath: string, baseDir: string): string {
+  const value = baseDir.trim();
+  if (!value) return repoPath;
+  if (value.startsWith("/")) return value;
+  return `${repoPath}/${value}`;
 }
 
 function describeConfigSaveError(error: ConfigSaveError): string {
@@ -191,6 +198,7 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [choosingBaseDir, setChoosingBaseDir] = useState(false);
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [supportingError, setSupportingError] = useState<string | null>(null);
@@ -208,6 +216,7 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
     setLoading(true);
     setSaving(false);
     setClearing(false);
+    setChoosingBaseDir(false);
     setLoadingError(null);
     setSaveError(null);
     setSupportingError(null);
@@ -254,7 +263,7 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
 
   if (!repo) return null;
   const selectedRepo = repo;
-  const busy = loading || saving || clearing;
+  const busy = loading || saving || clearing || choosingBaseDir;
   const tokenKey = form?.jira.tokenKeychainKey.trim() ?? "";
   const tokenAvailableForCurrentKey = tokenPresent && storedTokenKey === tokenKey;
   const cannotSaveReason = saveError ?? loadingError;
@@ -276,6 +285,29 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
   function updateJira(patch: Partial<RepositorySettingsForm["jira"]>): void {
     setForm((current) => (current ? { ...current, jira: { ...current.jira, ...patch } } : current));
     clearErrors();
+  }
+
+  async function chooseWorktreeBaseDir(): Promise<void> {
+    if (busy || !form) return;
+    clearErrors();
+
+    setChoosingBaseDir(true);
+    try {
+      const r = await api.dialog.selectDirectory({
+        title: "Select Worktree Base Directory",
+        defaultPath: defaultDirectoryPath(selectedRepo.path, form.worktree.baseDir),
+      });
+      if (r.ok && r.value) updateWorktree({ baseDir: r.value.path });
+    } catch (error) {
+      toast.push({
+        kind: "error",
+        title: "Failed to select directory",
+        description: describeUnknownError(error),
+        durationMs: 5000,
+      });
+    } finally {
+      setChoosingBaseDir(false);
+    }
   }
 
   async function save(): Promise<void> {
@@ -417,13 +449,31 @@ export function Settings({ open, onClose }: Props): React.JSX.Element | null {
       return (
         <div className="flex flex-col gap-4">
           <Field id="settings-worktree-base-dir" label="Base Directory">
-            <input
-              id="settings-worktree-base-dir"
-              className={INPUT_CLASS}
-              value={form.worktree.baseDir}
-              onChange={(e) => updateWorktree({ baseDir: e.target.value })}
-              disabled={busy}
-            />
+            <div className="flex gap-2">
+              <input
+                id="settings-worktree-base-dir"
+                className={cn(INPUT_CLASS, "min-w-0 flex-1 cursor-pointer")}
+                value={form.worktree.baseDir}
+                onClick={() => void chooseWorktreeBaseDir()}
+                disabled={busy}
+                readOnly
+              />
+              <Tooltip label="Select worktree base directory">
+                <button
+                  aria-label="Select worktree base directory"
+                  className="border-border-strong bg-surface text-text-muted hover:bg-elevated hover:text-text-primary inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40"
+                  onClick={() => void chooseWorktreeBaseDir()}
+                  disabled={busy}
+                  type="button"
+                >
+                  {choosingBaseDir ? (
+                    <Icon icon={Loader2} className="animate-spin" />
+                  ) : (
+                    <Icon icon={FolderOpen} />
+                  )}
+                </button>
+              </Tooltip>
+            </div>
           </Field>
           <Field id="settings-worktree-default-base-branch" label="Default Base Branch">
             <input

@@ -17,6 +17,9 @@ function makeInvoker<C extends keyof IpcChannels>(channel: C): Invoker<C> {
 }
 
 const api = {
+  dialog: {
+    selectDirectory: makeInvoker("dialog:selectDirectory"),
+  },
   repo: {
     openDialog: makeInvoker("repo:openDialog"),
     validate: makeInvoker("repo:validate"),
