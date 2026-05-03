@@ -56,7 +56,7 @@ export function Toolbar({
                 <button
                   aria-label="Force delete selected worktrees"
                   className={cn(
-                    "bg-destructive text-background inline-flex h-8 items-center gap-1 rounded-sm px-2 text-xs font-medium transition-opacity duration-150 hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                    "border-destructive bg-surface text-destructive hover:bg-destructive hover:text-background inline-flex h-8 items-center gap-1 rounded-sm border px-2 text-xs font-medium transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-40"
                   )}
                   disabled={selectableCount === 0}
                   onClick={() => onForceDelete?.()}
