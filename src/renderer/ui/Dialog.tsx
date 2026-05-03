@@ -44,7 +44,7 @@ function Title({ children }: { children: ReactNode }): React.JSX.Element {
 
 function Description({ children }: { children: ReactNode }): React.JSX.Element {
   return (
-    <RadixDialog.Description className="text-text-muted text-xs">
+    <RadixDialog.Description className="text-text-muted text-sm">
       {children}
     </RadixDialog.Description>
   );

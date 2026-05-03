@@ -138,7 +138,7 @@ export function JiraTab({
           />
           <button
             type="button"
-            className="text-text-secondary hover:bg-elevated rounded-sm px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+            className="text-text-secondary hover:bg-elevated h-10 rounded-sm px-4 text-base disabled:cursor-not-allowed disabled:opacity-40"
             onClick={() => void resolve()}
             disabled={!ticketInput || resolving || busy}
           >

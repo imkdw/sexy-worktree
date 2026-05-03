@@ -39,7 +39,7 @@ export function WorktreeMethodSelector({
 }: Props): React.JSX.Element {
   return (
     <div
-      className="border-border-subtle bg-background grid grid-cols-2 gap-2 rounded-md border p-2"
+      className="border-border-subtle bg-background grid grid-cols-2 gap-3 rounded-md border p-3"
       aria-label="Worktree creation method"
     >
       {METHODS.map((method) => {
@@ -53,16 +53,16 @@ export function WorktreeMethodSelector({
             disabled={disabled}
             onClick={() => onChange(method.value)}
             className={cn(
-              "border-border-subtle text-text-secondary hover:bg-elevated hover:text-text-primary focus:outline-accent-soft flex h-full flex-col items-start gap-3 rounded-md border p-4 text-left transition-colors duration-150 focus:outline-2 disabled:cursor-not-allowed disabled:opacity-40",
+              "border-border-subtle text-text-secondary hover:bg-elevated hover:text-text-primary focus:outline-accent-soft flex h-full flex-col items-start gap-3 rounded-md border p-6 text-left transition-colors duration-150 focus:outline-2 disabled:cursor-not-allowed disabled:opacity-40",
               selected &&
                 "border-accent bg-elevated text-text-primary outline-accent-soft outline-2"
             )}
           >
-            <span className="flex items-center gap-2 text-sm font-medium">
-              <Icon icon={method.icon} size={14} />
+            <span className="flex items-center gap-2 text-base font-medium">
+              <Icon icon={method.icon} size={16} />
               {method.title}
             </span>
-            <span className="text-text-muted text-xs leading-4">{method.description}</span>
+            <span className="text-text-muted text-sm">{method.description}</span>
           </button>
         );
       })}

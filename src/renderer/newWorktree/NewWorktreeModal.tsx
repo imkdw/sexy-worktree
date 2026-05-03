@@ -117,8 +117,8 @@ export function NewWorktreeModal({ open, onClose }: Props): React.JSX.Element | 
         onClose();
       }}
     >
-      <Dialog.Content size="normal">
-        <div className="flex flex-col gap-4">
+      <Dialog.Content size="wide">
+        <div className="flex flex-col gap-6">
           <Dialog.Header>
             <div className="flex min-w-0 flex-col gap-1">
               <Dialog.Title>New Worktree</Dialog.Title>
@@ -161,7 +161,7 @@ export function NewWorktreeModal({ open, onClose }: Props): React.JSX.Element | 
           <Dialog.Footer>
             <button
               type="button"
-              className="text-text-secondary hover:bg-elevated rounded-sm px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
+              className="text-text-secondary hover:bg-elevated rounded-sm px-4 py-3 text-base disabled:cursor-not-allowed disabled:opacity-40"
               onClick={onClose}
               disabled={busy}
             >
@@ -169,7 +169,7 @@ export function NewWorktreeModal({ open, onClose }: Props): React.JSX.Element | 
             </button>
             <button
               type="button"
-              className="bg-accent text-background rounded-sm px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
+              className="bg-accent text-background rounded-sm px-4 py-3 text-base font-medium disabled:cursor-not-allowed disabled:opacity-40"
               disabled={!canCreate || busy || requestSubmit === null}
               onClick={() => requestSubmit?.()}
             >

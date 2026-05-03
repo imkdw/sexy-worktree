@@ -284,22 +284,38 @@ describe("NewWorktreeModal", () => {
     expect(jira?.getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("gives the method selector its own padded control group surface", async () => {
+  it("renders the new worktree dialog with roomy modal sizing", async () => {
     const api = makeApi();
     const mounted = await mountModal(api);
     cleanup = mounted.unmount;
 
+    const dialog = document.querySelector<HTMLDivElement>('[role="dialog"]');
+    const body = dialog?.firstElementChild;
     const selector = document.querySelector<HTMLDivElement>(
       '[aria-label="Worktree creation method"]'
     );
     const direct = document.querySelector<HTMLButtonElement>('button[aria-label="Direct"]');
     const jira = document.querySelector<HTMLButtonElement>('button[aria-label="From Jira"]');
+    const methodTitle = direct?.querySelector("span");
+    const methodDescription = [...(direct?.querySelectorAll("span") ?? [])].find((el) =>
+      el.textContent?.includes("Type an exact branch name.")
+    );
+    const createButton = [...document.querySelectorAll("button")].find(
+      (el): el is HTMLButtonElement => el.textContent?.trim() === "Create Worktree"
+    );
 
+    expect(dialog?.classList.contains("w-modal-wide")).toBe(true);
+    expect(body?.classList.contains("gap-6")).toBe(true);
     expect(selector?.classList.contains("bg-background")).toBe(true);
-    expect(selector?.classList.contains("p-2")).toBe(true);
-    expect(selector?.classList.contains("gap-2")).toBe(true);
-    expect(direct?.classList.contains("p-4")).toBe(true);
-    expect(jira?.classList.contains("p-4")).toBe(true);
+    expect(selector?.classList.contains("p-3")).toBe(true);
+    expect(selector?.classList.contains("gap-3")).toBe(true);
+    expect(direct?.classList.contains("p-6")).toBe(true);
+    expect(jira?.classList.contains("p-6")).toBe(true);
+    expect(methodTitle?.classList.contains("text-base")).toBe(true);
+    expect(methodDescription?.classList.contains("text-sm")).toBe(true);
+    expect(createButton?.classList.contains("px-4")).toBe(true);
+    expect(createButton?.classList.contains("py-3")).toBe(true);
+    expect(createButton?.classList.contains("text-base")).toBe(true);
   });
 
   it("shows create summary and updates target path from Direct branch input", async () => {

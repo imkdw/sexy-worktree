@@ -29,9 +29,9 @@ export function WorktreeCreateSummary({ config, branchPreview }: Props): React.J
   return (
     <section
       aria-label="Create summary"
-      className="border-border-subtle rounded-md border p-3 text-xs"
+      className="border-border-subtle rounded-md border p-4 text-sm"
     >
-      <dl className="flex flex-col gap-2">
+      <dl className="flex flex-col gap-3">
         <SummaryRow label="Base branch" value={baseBranch} />
         <SummaryRow label="Worktree directory" value={baseDir} />
         <SummaryRow label="Target path" value={preview} />

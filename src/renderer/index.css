@@ -50,7 +50,7 @@
   /* Component-fixed sizes (named, outside the numeric scale) */
   --spacing-toast: 22.5rem;
   --spacing-modal: 30rem;
-  --spacing-modal-wide: 32.5rem;
+  --spacing-modal-wide: 40rem;
 
   /* Radius */
   --radius-sm: 6px;

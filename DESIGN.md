@@ -220,7 +220,9 @@ Only **In progress** and **Failed** break the 1px hairline rule. PTY crash uses 
 ### 6-6. Modal
 
 - Backdrop: `rgba(0,0,0,0.6)` + `backdrop-blur-sm`.
-- Container: `--color-surface`, `--radius-lg`, padding 24px, max-width 480px.
+- Container: `--color-surface`, `--radius-lg`, padding 24px, default max-width 480px.
+- Wide workflow modals with side-by-side choices or summaries may use the wide modal token,
+  capped by the viewport.
 - Title: `--text-lg`, weight-600.
 - Close button at top-right (`X`, `--color-text-muted`).
 - Action buttons aligned bottom-right: `Cancel` (ghost) → `Confirm` (primary, `--color-accent` background).
