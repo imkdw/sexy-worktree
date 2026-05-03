@@ -10,10 +10,10 @@ import { useToast } from "../state/toast";
 type Props = { open: boolean; onClose: () => void };
 
 export function ConfirmDeleteModal({ open, onClose }: Props): React.JSX.Element | null {
-  const [deleting, setDeleting] = useState(false);
+  const [starting, setStarting] = useState(false);
   const sm = useSelectMode();
   const { repos, activeRepoId } = useRepos();
-  const { worktrees, refresh } = useWorktrees();
+  const { worktrees } = useWorktrees();
   const toast = useToast();
   const repo = repos.find((r) => r.id === activeRepoId) ?? null;
   if (!repo) return null;
@@ -21,63 +21,46 @@ export function ConfirmDeleteModal({ open, onClose }: Props): React.JSX.Element 
 
   async function confirm(): Promise<void> {
     if (targets.length === 0) return;
-    if (deleting) return;
+    if (starting) return;
     if (!repo) return;
 
-    setDeleting(true);
-    const deletedPaths: string[] = [];
-    let attemptIndex = 0;
+    setStarting(true);
     try {
-      for (const [index, t] of targets.entries()) {
-        attemptIndex = index;
-        const r = await api.worktree.remove({ repoPath: repo.path, worktreePath: t.path });
-        if (!r.ok) {
-          if (deletedPaths.length > 0) {
-            const retryPaths = targets.slice(index).map((target) => target.path);
-            await refresh();
-            sm.selectAll(retryPaths);
-          }
-          toast.push({
-            kind: "error",
-            title: "Failed to delete worktree",
-            description: r.error.message,
-            durationMs: 5000,
-          });
-          return;
-        }
-        deletedPaths.push(t.path);
+      const result = await api.worktreeDelete.start({
+        repoId: repo.id,
+        targets: targets.map(({ path, branch }) => ({ worktreePath: path, branch })),
+      });
+      if (!result.ok) {
+        toast.push({
+          kind: "error",
+          title: "Failed to start delete job",
+          description: result.error.message,
+          durationMs: 5000,
+        });
+        return;
       }
-      await refresh();
       sm.exit();
       onClose();
       toast.push({
-        kind: "success",
-        title: `Deleted ${targets.length} worktree(s)`,
+        kind: "progress",
+        title: `Deleting ${targets.length} ${targets.length === 1 ? "worktree" : "worktrees"}`,
+        description: "Progress is shown in Background Jobs.",
         durationMs: 3000,
       });
     } catch (error) {
-      if (deletedPaths.length > 0) {
-        const deletedPathSet = new Set(deletedPaths);
-        const retryPaths = targets
-          .slice(attemptIndex)
-          .map((target) => target.path)
-          .filter((path) => !deletedPathSet.has(path));
-        await refresh();
-        sm.selectAll(retryPaths);
-      }
       toast.push({
         kind: "error",
-        title: "Failed to delete worktree",
-        description: error instanceof Error ? error.message : "Unexpected delete failure",
+        title: "Failed to start delete job",
+        description: error instanceof Error ? error.message : "Unexpected delete job start failure",
         durationMs: 5000,
       });
     } finally {
-      setDeleting(false);
+      setStarting(false);
     }
   }
 
   return (
-    <Dialog.Root open={open} onOpenChange={(o) => !o && !deleting && onClose()}>
+    <Dialog.Root open={open} onOpenChange={(openNext) => !openNext && !starting && onClose()}>
       <Dialog.Content size="normal">
         <Dialog.Title>
           Force delete {targets.length} worktree{targets.length === 1 ? "" : "s"}?
@@ -93,19 +76,19 @@ export function ConfirmDeleteModal({ open, onClose }: Props): React.JSX.Element 
         </div>
         <Dialog.Footer>
           <button
-            disabled={deleting}
+            disabled={starting}
             className="text-text-secondary hover:bg-elevated rounded-sm px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
             onClick={onClose}
           >
             Cancel
           </button>
           <button
-            disabled={targets.length === 0 || deleting}
-            aria-busy={deleting}
+            disabled={targets.length === 0 || starting}
+            aria-busy={starting}
             className="bg-destructive text-background rounded-sm px-3 py-2 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-40"
             onClick={() => void confirm()}
           >
-            {deleting ? "Deleting..." : "Force Delete"}
+            {starting ? "Starting..." : "Force Delete"}
           </button>
         </Dialog.Footer>
       </Dialog.Content>
