@@ -43,6 +43,22 @@ export function createLeafEntry(): LeafEntry {
   const fit = new FitAddon();
   term.loadAddon(fit);
 
+  term.attachCustomKeyEventHandler((ev) => {
+    if (ev.type !== "keydown") return true;
+
+    if (ev.key === "Enter" && ev.shiftKey && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
+      term.input("\x1b\r");
+      return false;
+    }
+
+    if (ev.key === "Backspace" && ev.metaKey && !ev.shiftKey && !ev.ctrlKey && !ev.altKey) {
+      term.input("\x15");
+      return false;
+    }
+
+    return true;
+  });
+
   const entry: LeafEntry = {
     term,
     fit,
