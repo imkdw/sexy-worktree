@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
+  "packageManager": "pnpm@10.6.1",
   "main": "out/main/index.js",
   "scripts": {
     "test": "pnpm test:rebuild-node && vitest run && pnpm test:rebuild-electron",
