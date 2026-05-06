@@ -1,6 +1,8 @@
 import { ok, err, type Result } from "@shared/result";
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
+import { join } from "node:path";
 
 /**
  * @anthropic-ai/claude-code는 JS 모듈이 아니라 컴파일된 바이너리 CLI다.
@@ -11,15 +13,47 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const CLAUDE_PACKAGE_BIN = "@anthropic-ai/claude-code/bin/claude.exe";
+const PACKAGED_CLAUDE_BIN = join("claude-code", "bin", "claude.exe");
 
-export function resolveClaudeBinaryPath(args: {
-  requireResolve?: (id: string) => string;
-} = {}): string {
+export function resolveClaudeBinaryPath(
+  args: {
+    existsSync?: (path: string) => boolean;
+    isPackaged?: boolean;
+    requireResolve?: (id: string) => string;
+    resourcesPath?: string;
+  } = {}
+): string {
+  const isPackaged = args.isPackaged ?? import.meta.url.includes(".asar/");
+  const resourcesPath =
+    args.resourcesPath ?? (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
+  const pathExists = args.existsSync ?? existsSync;
+
+  if (isPackaged && resourcesPath) {
+    const packagedBin = join(resourcesPath, PACKAGED_CLAUDE_BIN);
+    if (pathExists(packagedBin)) return packagedBin;
+
+    const unpackedBin = join(
+      resourcesPath,
+      "app.asar.unpacked",
+      "node_modules",
+      "@anthropic-ai",
+      "claude-code",
+      "bin",
+      "claude.exe"
+    );
+    if (pathExists(unpackedBin)) return unpackedBin;
+  }
+
   const requireResolve = args.requireResolve ?? ((id: string) => require.resolve(id));
   return requireResolve(CLAUDE_PACKAGE_BIN);
 }
 
-const CLAUDE_BIN = resolveClaudeBinaryPath();
+let cachedClaudeBin: string | null = null;
+
+function getClaudeBinaryPath(): string {
+  cachedClaudeBin ??= resolveClaudeBinaryPath();
+  return cachedClaudeBin;
+}
 
 const PROMPT = (ticketKey: string, summary: string): string => `
 You are converting a Jira ticket title into an English kebab-case branch slug.
@@ -68,7 +102,7 @@ export async function generateBranchSlug(args: {
 function runClaude(prompt: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const proc = spawn(
-      CLAUDE_BIN,
+      getClaudeBinaryPath(),
       [
         "--print",
         "--output-format",

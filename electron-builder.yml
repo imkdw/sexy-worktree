@@ -11,6 +11,11 @@ asarUnpack:
   - node_modules/@anthropic-ai/claude-code/bin/**
   - node_modules/better-sqlite3/**/*.node
   - node_modules/node-pty/**/*.node
+extraResources:
+  - from: node_modules/@anthropic-ai/claude-code/bin
+    to: claude-code/bin
+    filter:
+      - claude.exe
 npmRebuild: true
 mac:
   category: public.app-category.developer-tools

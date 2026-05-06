@@ -25,4 +25,24 @@ describe("resolveClaudeBinaryPath", () => {
     expect(actualPath).not.toBe(join("/repo", "out", "node_modules", ".bin", "claude"));
     expect(requireResolve).toHaveBeenCalledWith("@anthropic-ai/claude-code/bin/claude.exe");
   });
+
+  it("resolves the copied Electron resource binary before package lookup in packaged apps", () => {
+    const resourcesPath = join("/Applications", "Sexy Worktree.app", "Contents", "Resources");
+    const expectedPath = join(resourcesPath, "claude-code", "bin", "claude.exe");
+    const existsSync = vi.fn((path: string) => path === expectedPath);
+    const requireResolve = vi.fn(() => {
+      throw new Error("Cannot find module '@anthropic-ai/claude-code/bin/claude.exe'");
+    });
+
+    const actualPath = resolveClaudeBinaryPath({
+      existsSync,
+      isPackaged: true,
+      requireResolve,
+      resourcesPath,
+    });
+
+    expect(actualPath).toBe(expectedPath);
+    expect(existsSync).toHaveBeenCalledWith(expectedPath);
+    expect(requireResolve).not.toHaveBeenCalled();
+  });
 });
