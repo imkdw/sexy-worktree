@@ -14,6 +14,8 @@
     "format:check": "prettier --check src",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
+    "dist:mac": "pnpm build && electron-builder --mac dmg --arm64 --publish never",
+    "dist:mac:dir": "pnpm build && electron-builder --mac dir --arm64 --publish never",
     "start": "electron-vite preview",
     "test:rebuild-node": "pnpm rebuild better-sqlite3 node-pty",
     "test:rebuild-electron": "electron-rebuild -f -w better-sqlite3,node-pty"
@@ -55,6 +57,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
     "electron": "^41.3.0",
+    "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
     "eslint": "^9",
     "eslint-plugin-better-tailwindcss": "^3",
