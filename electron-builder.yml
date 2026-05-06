@@ -2,6 +2,7 @@ appId: com.imkdw.sexy-worktree
 productName: Sexy Worktree
 directories:
   output: dist
+  buildResources: resources
 files:
   - out/**
   - package.json
@@ -14,9 +15,11 @@ npmRebuild: true
 mac:
   category: public.app-category.developer-tools
   identity: "-"
+  icon: icon.icns
   target:
     - target: dmg
       arch:
         - arm64
 dmg:
+  icon: icon.icns
   artifactName: ${productName}-${version}-${arch}.${ext}
