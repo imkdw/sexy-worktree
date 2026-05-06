@@ -7,6 +7,11 @@ import { gitExec } from "../git/exec";
 
 export type StepError = { stderr: string; code: number };
 
+const DEFAULT_SHELL = "/bin/zsh";
+const SHELL_PATH_TIMEOUT_MS = 5_000;
+
+let userShellPathCache: { key: string; value: Promise<string | null> } | null = null;
+
 /**
  * `git fetch origin`을 실행해 원격 브랜치 정보를 갱신한다.
  */
@@ -96,14 +101,16 @@ export async function stepInitCommands(args: {
   return ok(undefined);
 }
 
-function runShell(
+async function runShell(
   cmd: string,
   argv: string[],
   cwd?: string,
   timeoutMs = 60_000
 ): Promise<Result<void, StepError>> {
+  const env = await commandEnvironment();
+
   return new Promise((resolve) => {
-    const child = spawn(cmd, argv, { cwd, env: process.env });
+    const child = spawn(cmd, argv, { cwd, env });
     const errs: Buffer[] = [];
     let timer: NodeJS.Timeout | null = null;
     if (timeoutMs) timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
@@ -122,4 +129,110 @@ function runShell(
       else resolve(err({ stderr, code: code ?? -1 }));
     });
   });
+}
+
+async function commandEnvironment(): Promise<NodeJS.ProcessEnv> {
+  const userShellPath = await resolveUserShellPath(process.env);
+  return {
+    ...process.env,
+    PATH: mergePathValues(
+      userShellPath,
+      process.env.PATH,
+      ...fallbackDeveloperPathEntries(process.env.HOME)
+    ),
+  };
+}
+
+async function resolveUserShellPath(env: NodeJS.ProcessEnv): Promise<string | null> {
+  const shell = env.SHELL && existsSync(env.SHELL) ? env.SHELL : DEFAULT_SHELL;
+  if (!existsSync(shell)) return null;
+
+  const key = [shell, env.HOME ?? "", env.PATH ?? ""].join("\0");
+  if (!userShellPathCache || userShellPathCache.key !== key) {
+    userShellPathCache = { key, value: readPathFromShell(shell, env) };
+  }
+
+  return await userShellPathCache.value;
+}
+
+function readPathFromShell(shell: string, env: NodeJS.ProcessEnv): Promise<string | null> {
+  return new Promise((resolve) => {
+    const marker = `__SEXY_WORKTREE_PATH_${process.pid}_${Date.now()}__`;
+    const child = spawn(shell, ["-ilc", `printf '\\n${marker}\\n%s\\n${marker}\\n' "$PATH"`], {
+      env,
+    });
+    const out: Buffer[] = [];
+    let settled = false;
+    const timer = setTimeout(() => {
+      settled = true;
+      child.kill("SIGKILL");
+      resolve(null);
+    }, SHELL_PATH_TIMEOUT_MS);
+
+    child.stdout.on("data", (b: Buffer) => out.push(b));
+    child.on("error", () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(null);
+    });
+    child.on("close", () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(extractMarkedValue(Buffer.concat(out).toString("utf8"), marker));
+    });
+  });
+}
+
+function extractMarkedValue(stdout: string, marker: string): string | null {
+  const markerLine = `\n${marker}\n`;
+  const start = stdout.indexOf(markerLine);
+  if (start === -1) return null;
+  const valueStart = start + markerLine.length;
+  const end = stdout.indexOf(markerLine, valueStart);
+  if (end === -1) return null;
+  const value = stdout.slice(valueStart, end).trim();
+  return value ? value : null;
+}
+
+function fallbackDeveloperPathEntries(home?: string): string[] {
+  const homeEntries = home
+    ? [
+        join(home, ".volta", "bin"),
+        join(home, ".asdf", "shims"),
+        join(home, ".local", "bin"),
+        join(home, "Library", "pnpm"),
+        join(home, ".bun", "bin"),
+        join(home, ".yarn", "bin"),
+        join(home, "bin"),
+      ]
+    : [];
+
+  return [
+    ...homeEntries,
+    "/opt/homebrew/bin",
+    "/opt/homebrew/sbin",
+    "/usr/local/bin",
+    "/usr/local/sbin",
+    "/usr/bin",
+    "/bin",
+    "/usr/sbin",
+    "/sbin",
+  ];
+}
+
+function mergePathValues(...values: Array<string | undefined | null>): string {
+  const entries = values.flatMap((value) => value?.split(":") ?? []);
+  const seen = new Set<string>();
+  const merged: string[] = [];
+
+  for (const entry of entries) {
+    const trimmed = entry.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    merged.push(trimmed);
+  }
+
+  return merged.join(":");
 }

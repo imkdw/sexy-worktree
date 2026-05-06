@@ -1,9 +1,18 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { execSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { stepFetch, stepWorktreeAdd, stepFilesCopy } from "@main/worktree/steps";
+import { stepFetch, stepWorktreeAdd, stepFilesCopy, stepInitCommands } from "@main/worktree/steps";
+
+const originalEnv = { ...process.env };
 
 let tmp: string;
 let upstream: string;
@@ -29,6 +38,10 @@ beforeEach(() => {
     stdio: "ignore",
     shell: "/bin/bash",
   });
+});
+
+afterEach(() => {
+  process.env = { ...originalEnv };
 });
 
 describe("stepFetch", () => {
@@ -82,5 +95,45 @@ describe("stepFilesCopy", () => {
       files: [".does-not-exist"],
     });
     expect(r.ok).toBe(true);
+  });
+});
+
+describe("stepInitCommands", () => {
+  it("runs commands with PATH resolved from the user's shell", async () => {
+    const binDir = join(tmp, "bin");
+    const yarnPath = join(binDir, "yarn");
+    const shellPath = join(tmp, "fake-shell");
+    const markerPath = join(tmp, "init-command-ran");
+
+    mkdirSync(binDir);
+    writeFileSync(
+      yarnPath,
+      `#!/bin/sh
+touch "$1"
+`
+    );
+    chmodSync(yarnPath, 0o755);
+
+    writeFileSync(
+      shellPath,
+      `#!/bin/sh
+PATH="${binDir}:$PATH" /bin/sh -c "$2"
+`
+    );
+    chmodSync(shellPath, 0o755);
+
+    process.env = {
+      ...originalEnv,
+      PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
+      SHELL: shellPath,
+    };
+
+    const result = await stepInitCommands({
+      worktreePath: tmp,
+      initCommands: [`yarn "${markerPath}"`],
+    });
+
+    expect(result).toEqual({ ok: true, value: undefined });
+    expect(existsSync(markerPath)).toBe(true);
   });
 });
