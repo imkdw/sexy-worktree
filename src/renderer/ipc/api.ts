@@ -44,6 +44,10 @@ type Api = {
     load: Invoker<"pane:load">;
     save: Invoker<"pane:save">;
   };
+  overviewGridDensity: {
+    get: Invoker<"overviewGridDensity:get">;
+    set: Invoker<"overviewGridDensity:set">;
+  };
   newWorktree: {
     create: Invoker<"newWorktree:create">;
     retry: Invoker<"newWorktree:retry">;

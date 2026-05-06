@@ -7,6 +7,10 @@ import { ReposProvider, useRepos } from "./state/repos";
 import { WorktreesProvider, useWorktrees } from "./state/worktrees";
 import { ModeProvider, useMode } from "./state/mode";
 import { SelectModeProvider, useSelectMode } from "./state/selectMode";
+import {
+  OverviewGridDensityProvider,
+  useOverviewGridDensity,
+} from "./state/overviewGridDensity";
 import { Grid } from "./grid/Grid";
 import { Focus } from "./focus/Focus";
 import { KeyboardShortcuts } from "./shortcuts/KeyboardShortcuts";
@@ -27,6 +31,7 @@ function Shell(): React.JSX.Element {
   const { repos, activeRepoId } = useRepos();
   const { worktrees } = useWorktrees();
   const sm = useSelectMode();
+  const { density: overviewGridDensity, toggleDensity } = useOverviewGridDensity();
   const active = repos.find((r) => r.id === activeRepoId) ?? null;
   const [modalOpen, setModalOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -71,6 +76,8 @@ function Shell(): React.JSX.Element {
         worktreeCount={worktrees.length}
         mode={mode}
         onModeChange={setMode}
+        overviewGridDensity={overviewGridDensity}
+        onToggleOverviewGridDensity={() => void toggleDensity()}
         onNewWorktree={() => setModalOpen(true)}
         onOpenSettings={() => setSettingsOpen(true)}
         onForceDelete={() => setConfirmDeleteOpen(true)}
@@ -95,19 +102,21 @@ export function App(): React.JSX.Element {
     <TooltipProvider delayDuration={300}>
       <ToastProvider>
         <ReposProvider>
-          <WorktreesProvider>
-            <DeleteWorktreeProvider>
-              <TerminalSessionsProvider>
-                <NewWorktreeProvider>
-                  <SelectModeProvider>
-                    <ModeProvider>
-                      <Shell />
-                    </ModeProvider>
-                  </SelectModeProvider>
-                </NewWorktreeProvider>
-              </TerminalSessionsProvider>
-            </DeleteWorktreeProvider>
-          </WorktreesProvider>
+          <OverviewGridDensityProvider>
+            <WorktreesProvider>
+              <DeleteWorktreeProvider>
+                <TerminalSessionsProvider>
+                  <NewWorktreeProvider>
+                    <SelectModeProvider>
+                      <ModeProvider>
+                        <Shell />
+                      </ModeProvider>
+                    </SelectModeProvider>
+                  </NewWorktreeProvider>
+                </TerminalSessionsProvider>
+              </DeleteWorktreeProvider>
+            </WorktreesProvider>
+          </OverviewGridDensityProvider>
         </ReposProvider>
       </ToastProvider>
     </TooltipProvider>

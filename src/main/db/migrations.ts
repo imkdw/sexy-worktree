@@ -54,6 +54,21 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 4,
+    description: "repo UI preferences",
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE repo_ui_preferences (
+          repo_id INTEGER PRIMARY KEY,
+          overview_grid_density TEXT NOT NULL
+            CHECK (overview_grid_density IN ('2x2', '3x3')),
+          updated_at INTEGER NOT NULL,
+          FOREIGN KEY (repo_id) REFERENCES repos(id) ON DELETE CASCADE
+        );
+      `);
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

@@ -45,4 +45,13 @@ describe("runMigrations", () => {
       .get();
     expect(table).toBeTruthy();
   });
+
+  it("creates the repo_ui_preferences table at v4", () => {
+    const db = new Database(":memory:");
+    runMigrations(db);
+    const table = db
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='repo_ui_preferences'")
+      .get();
+    expect(table).toBeTruthy();
+  });
 });

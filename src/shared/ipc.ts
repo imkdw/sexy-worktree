@@ -2,6 +2,7 @@ import type { Result } from "./result";
 import type { PaneNode } from "./pane";
 import type { JobSnapshot, JobEvent } from "./newWorktree";
 import type { DeleteWorktreeJobEvent, DeleteWorktreeJobSnapshot } from "./deleteWorktree";
+import type { OverviewGridDensity } from "./overviewGridDensity";
 
 export type RepoRow = {
   id: number;
@@ -70,6 +71,8 @@ export type PtyExitEvent = {
 export type PtySpawnError =
   | { kind: "cwd-missing"; cwd: string; message: string }
   | { kind: "unknown"; message: string };
+
+export type OverviewGridDensityError = { message: string };
 
 export type IpcChannels = {
   "dialog:selectDirectory": {
@@ -173,6 +176,14 @@ export type IpcChannels = {
   "pane:save": {
     in: { repoId: number; worktreePath: string; tree: PaneNode };
     out: Result<void, { message: string }>;
+  };
+  "overviewGridDensity:get": {
+    in: { repoId: number };
+    out: Result<{ density: OverviewGridDensity }, OverviewGridDensityError>;
+  };
+  "overviewGridDensity:set": {
+    in: { repoId: number; density: OverviewGridDensity };
+    out: Result<void, OverviewGridDensityError>;
   };
   "newWorktree:create": {
     in: { repoId: number; branch: string };

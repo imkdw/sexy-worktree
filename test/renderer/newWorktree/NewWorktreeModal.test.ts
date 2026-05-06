@@ -69,6 +69,10 @@ function makeApi(overrides: Partial<ApiMock> = {}): ApiMock {
       load: vi.fn(),
       save: vi.fn(),
     },
+    overviewGridDensity: {
+      get: vi.fn(),
+      set: vi.fn(),
+    },
     newWorktree: {
       create: vi.fn().mockResolvedValue(ok({ jobId: "job-1" })),
       retry: vi.fn(),

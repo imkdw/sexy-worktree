@@ -65,8 +65,20 @@
 }
 
 /* Custom utilities */
-@utility grid-card-rows {
-  grid-auto-rows: calc((100vh - var(--titlebar-h) - var(--tabbar-h) - var(--toolbar-h)) / 2);
+@utility grid-card-rows-2 {
+  grid-auto-rows: calc(
+    (
+        100vh - var(--titlebar-h) - var(--tabbar-h) - var(--toolbar-h) - var(--spacing-3) - var(--spacing-3) - var(--spacing-3)
+      ) / 2
+  );
+}
+
+@utility grid-card-rows-3 {
+  grid-auto-rows: calc(
+    (
+        100vh - var(--titlebar-h) - var(--tabbar-h) - var(--toolbar-h) - var(--spacing-3) - var(--spacing-3) - var(--spacing-3) - var(--spacing-3)
+      ) / 3
+  );
 }
 
 @utility dialog-settings-size {

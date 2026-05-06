@@ -10,6 +10,7 @@ import { registerSecretsHandlers } from "./secrets";
 import { registerJiraHandlers } from "./jira";
 import { registerWorktreeDeleteHandlers } from "./worktreeDelete";
 import { registerRecentsHandlers } from "./recents";
+import { registerOverviewGridDensityHandlers } from "./overviewGridDensity";
 
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
   registerDialogHandlers(getWindow);
@@ -19,6 +20,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   registerConfigHandlers();
   registerPtyHandlers(getWindow);
   registerPaneHandlers();
+  registerOverviewGridDensityHandlers();
   registerNewWorktreeHandlers(getWindow);
   registerSecretsHandlers();
   registerJiraHandlers();

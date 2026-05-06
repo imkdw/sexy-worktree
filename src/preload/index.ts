@@ -58,6 +58,10 @@ const api = {
     load: makeInvoker("pane:load"),
     save: makeInvoker("pane:save"),
   },
+  overviewGridDensity: {
+    get: makeInvoker("overviewGridDensity:get"),
+    set: makeInvoker("overviewGridDensity:set"),
+  },
   newWorktree: {
     create: makeInvoker("newWorktree:create"),
     retry: makeInvoker("newWorktree:retry"),

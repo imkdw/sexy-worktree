@@ -1,4 +1,15 @@
-import { LayoutGrid, Maximize2, Plus, Settings as SettingsIcon, Trash2, X } from "lucide-react";
+import {
+  Grid2x2,
+  Grid3x3,
+  LayoutGrid,
+  Maximize2,
+  Plus,
+  Settings as SettingsIcon,
+  Trash2,
+  X,
+} from "lucide-react";
+import type { OverviewGridDensity } from "@shared/overviewGridDensity";
+
 import { Icon } from "../icons/Icon";
 import { useSelectMode } from "../state/selectMode";
 import { useWorktrees } from "../state/worktrees";
@@ -15,6 +26,8 @@ type ToolbarProps = {
   onNewWorktree?: () => void;
   onOpenSettings?: () => void;
   onForceDelete?: () => void;
+  overviewGridDensity?: OverviewGridDensity;
+  onToggleOverviewGridDensity?: () => void;
 };
 
 export function Toolbar({
@@ -25,6 +38,8 @@ export function Toolbar({
   onNewWorktree,
   onOpenSettings,
   onForceDelete,
+  overviewGridDensity,
+  onToggleOverviewGridDensity,
 }: ToolbarProps): React.JSX.Element {
   const sm = useSelectMode();
   const { worktrees } = useWorktrees();
@@ -32,6 +47,9 @@ export function Toolbar({
     const wt = worktrees.find((w) => w.path === id);
     return wt && !wt.isMain;
   }).length;
+  const densityTarget = overviewGridDensity === "3x3" ? "2x2" : "3x3";
+  const DensityIcon = overviewGridDensity === "3x3" ? Grid3x3 : Grid2x2;
+
   return (
     <div className="border-border-subtle bg-background flex h-[var(--toolbar-h)] items-center justify-between border-b px-4">
       <div className="text-text-muted flex items-center gap-3 text-sm">
@@ -86,6 +104,17 @@ export function Toolbar({
             </ToggleGroup.Item>
           </Tooltip>
         </ToggleGroup.Root>
+        {mode === "overview" && overviewGridDensity && (
+          <Tooltip label={`Switch to ${densityTarget}`}>
+            <button
+              aria-label={`Switch overview grid to ${densityTarget}`}
+              className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150"
+              onClick={onToggleOverviewGridDensity}
+            >
+              <Icon icon={DensityIcon} />
+            </button>
+          </Tooltip>
+        )}
         <Tooltip label="New Worktree (⌘N)">
           <button
             aria-label="New worktree"

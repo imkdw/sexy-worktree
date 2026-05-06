@@ -72,6 +72,74 @@ async function mountToolbar(): Promise<{ unmount: () => void }> {
           repoPath: "/repo",
           worktreeCount: worktrees.length,
           mode: "overview",
+          overviewGridDensity: "2x2",
+          onToggleOverviewGridDensity: vi.fn(),
+        })
+      )
+    );
+  });
+
+  return {
+    unmount: () => {
+      act(() => root.unmount());
+      container.remove();
+    },
+  };
+}
+
+async function mountToolbarWithProps(
+  props: Partial<{
+    mode: "overview" | "focus";
+    overviewGridDensity: "2x2" | "3x3";
+    onToggleOverviewGridDensity: () => void;
+  }>
+): Promise<{ unmount: () => void }> {
+  vi.resetModules();
+  vi.doMock("@renderer/state/selectMode", () => ({
+    useSelectMode: () => ({
+      enabled: false,
+      selected: new Set<string>(),
+      lastToggledId: null,
+      enter: vi.fn(),
+      exit: vi.fn(),
+      toggle: vi.fn(),
+      toggleRangeTo: vi.fn(),
+      clearSelected: vi.fn(),
+      selectAll: vi.fn(),
+      toggleAll: vi.fn(),
+    }),
+  }));
+  vi.doMock("@renderer/state/worktrees", () => ({
+    useWorktrees: () => ({
+      worktreesByRepo: new Map(),
+      worktrees,
+      activeId: selectedWorktree,
+      setActive: vi.fn(),
+      refresh: vi.fn(),
+      refreshRepo: vi.fn(),
+    }),
+  }));
+
+  const [{ TooltipProvider }, { Toolbar }] = await Promise.all([
+    import("@renderer/ui"),
+    import("@renderer/chrome/Toolbar"),
+  ]);
+
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root: Root = createRoot(container);
+
+  await act(async () => {
+    root.render(
+      createElement(
+        TooltipProvider as ComponentType<{ children: ReactNode }>,
+        null,
+        createElement(Toolbar, {
+          repoPath: "/repo",
+          worktreeCount: worktrees.length,
+          mode: props.mode ?? "overview",
+          overviewGridDensity: props.overviewGridDensity ?? "2x2",
+          onToggleOverviewGridDensity: props.onToggleOverviewGridDensity ?? vi.fn(),
         })
       )
     );
@@ -112,5 +180,37 @@ describe("Toolbar", () => {
     expect(forceDelete?.className).toContain("text-destructive");
     expect(forceDelete?.className).toContain("hover:bg-destructive");
     expect(forceDelete?.className).toContain("hover:text-background");
+  });
+
+  it("shows an overview density toggle in overview mode", async () => {
+    const onToggle = vi.fn();
+    const mounted = await mountToolbarWithProps({
+      mode: "overview",
+      overviewGridDensity: "2x2",
+      onToggleOverviewGridDensity: onToggle,
+    });
+    cleanup = mounted.unmount;
+
+    const button = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="Switch overview grid to 3x3"]'
+    );
+    expect(button).toBeTruthy();
+
+    await act(async () => {
+      button?.click();
+    });
+    expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the overview density toggle in focus mode", async () => {
+    const mounted = await mountToolbarWithProps({
+      mode: "focus",
+      overviewGridDensity: "3x3",
+      onToggleOverviewGridDensity: vi.fn(),
+    });
+    cleanup = mounted.unmount;
+
+    expect(document.querySelector('button[aria-label="Switch overview grid to 2x2"]')).toBeNull();
+    expect(document.querySelector('button[aria-label="Switch overview grid to 3x3"]')).toBeNull();
   });
 });
