@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useMode } from "../state/mode";
 import { useRepos } from "../state/repos";
+import { useTerminalSessionCards } from "../state/terminalSessions";
 import { useWorktrees, worktreeId } from "../state/worktrees";
 import { matchShortcut, type ShortcutAction } from "./shortcutMap";
 
@@ -14,6 +15,7 @@ import { matchShortcut, type ShortcutAction } from "./shortcutMap";
 export function KeyboardShortcuts(): null {
   const { toggle: toggleMode } = useMode();
   const { openRepo, activeRepoId } = useRepos();
+  const { openOrFocus } = useTerminalSessionCards();
   const { worktrees, activeId, setActive } = useWorktrees();
 
   useEffect(() => {
@@ -49,7 +51,11 @@ export function KeyboardShortcuts(): null {
               ? (idx + 1) % worktrees.length
               : (idx - 1 + worktrees.length) % worktrees.length;
           const target = worktrees[next];
-          if (target) setActive(worktreeId(target));
+          if (target) {
+            const id = worktreeId(target);
+            setActive(id);
+            if (activeRepoId) openOrFocus(activeRepoId, id);
+          }
           break;
         }
         case "split-v":
@@ -67,7 +73,7 @@ export function KeyboardShortcuts(): null {
     }
     window.addEventListener("keydown", handle);
     return () => window.removeEventListener("keydown", handle);
-  }, [toggleMode, openRepo, activeRepoId, worktrees, activeId, setActive]);
+  }, [toggleMode, openRepo, activeRepoId, openOrFocus, worktrees, activeId, setActive]);
 
   return null;
 }

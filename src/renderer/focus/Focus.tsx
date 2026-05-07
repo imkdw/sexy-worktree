@@ -1,17 +1,25 @@
 import { Card } from "../card/Card";
+import { NoTerminal } from "../empty/NoTerminal";
 import { useRepos } from "../state/repos";
+import { useTerminalSessionCards } from "../state/terminalSessions";
 import { useWorktrees } from "../state/worktrees";
 
 export function Focus(): React.JSX.Element {
   const { activeRepoId } = useRepos();
   const { worktrees, activeId, setActive } = useWorktrees();
+  const { isOpen } = useTerminalSessionCards();
   const wt = worktrees.find((w) => w.path === activeId) ?? null;
-  if (!activeRepoId || !wt)
+
+  if (!activeRepoId) {
     return (
       <div className="text-text-faint flex flex-1 items-center justify-center">
         No worktree selected.
       </div>
     );
+  }
+
+  if (!wt || !isOpen(activeRepoId, wt.path)) return <NoTerminal mode="focus" />;
+
   return (
     <div className="flex h-full p-3">
       <Card

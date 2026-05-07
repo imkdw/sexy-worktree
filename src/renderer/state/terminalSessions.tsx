@@ -42,6 +42,7 @@ export type WorktreeOps = {
   getExit: (leafId: string) => LeafExit | null;
   split: (focusedId: string, orientation: "horizontal" | "vertical") => string | null;
   closePane: (leafId: string) => void;
+  closeCurrent: (leafId: string | null) => void;
   resize: (path: number[], sizes: [number, number]) => void;
   newPane: () => string;
   updateLeafCommand: (leafId: string, cmd: string) => void;
@@ -49,7 +50,14 @@ export type WorktreeOps = {
   getFirstPtyId: () => string | null;
 };
 
-type SessionsCtxValue = {
+export type TerminalCardsOps = {
+  openOrFocus: (repoId: number, worktreePath: string) => void;
+  closeCard: (repoId: number, worktreePath: string) => void;
+  isOpen: (repoId: number, worktreePath: string) => boolean;
+  getOpenCards: (repoId: number) => string[];
+};
+
+type SessionsCtxValue = TerminalCardsOps & {
   getOps: (repoId: number, worktreePath: string) => WorktreeOps;
 };
 
@@ -57,13 +65,16 @@ const SessionsCtx = createContext<SessionsCtxValue | null>(null);
 
 export function TerminalSessionsProvider({ children }: { children: ReactNode }): React.JSX.Element {
   const { repos } = useRepos();
-  const { worktreesByRepo } = useWorktrees();
+  const { worktreesByRepo, activeId, setActive } = useWorktrees();
 
   // 라이브 상태 ref (async race 가드용 — 항상 최신값을 담음)
   const worktreesByRepoRef = useRef(worktreesByRepo);
   worktreesByRepoRef.current = worktreesByRepo;
+  const activeIdRef = useRef(activeId);
+  activeIdRef.current = activeId;
 
   // 풀 — 모두 ref 기반 (변경 알림은 version bump으로)
+  const openCardsByRepoRef = useRef<Map<number, string[]>>(new Map());
   const paneTreesRef = useRef<Map<WorktreeKey, PaneNode | null>>(new Map());
   const entriesRef = useRef<Map<LeafKey, LeafEntry>>(new Map());
   const exitInfoRef = useRef<Map<LeafKey, LeafExit>>(new Map());
@@ -71,10 +82,10 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
   const saveTimersRef = useRef<Map<WorktreeKey, ReturnType<typeof setTimeout>>>(new Map());
   const loadingTreesRef = useRef<Set<WorktreeKey>>(new Set());
 
-  const isWorktreeAlive = (repoId: number, worktreePath: string): boolean => {
+  const isWorktreeAlive = useCallback((repoId: number, worktreePath: string): boolean => {
     const list = worktreesByRepoRef.current.get(repoId);
     return !!list?.some((w) => w.path === worktreePath);
-  };
+  }, []);
 
   const [, bump] = useState(0);
   const triggerRender = useCallback(() => bump((v) => v + 1), []);
@@ -96,7 +107,11 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
         triggerRender();
       };
       entriesRef.current.set(key, entry);
-      void spawnPtyForEntry(entry, worktreePath);
+      void spawnPtyForEntry(entry, worktreePath).then(() => {
+        if (entriesRef.current.get(key) !== entry) {
+          disposePtyForEntry(entry);
+        }
+      });
       triggerRender();
     },
     // updateLeafCommandInternal이 아래에 정의됨 (closure)
@@ -134,6 +149,7 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
       const t = saveTimersRef.current.get(wk);
       if (t) clearTimeout(t);
       saveTimersRef.current.delete(wk);
+      loadingTreesRef.current.delete(wk);
       triggerRender();
     },
     [triggerRender]
@@ -148,8 +164,10 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
           disposeWorktree(repoId, wtPath);
         }
       }
+      openCardsByRepoRef.current.delete(repoId);
+      triggerRender();
     },
-    [disposeWorktree]
+    [disposeWorktree, triggerRender]
   );
 
   const setTreeAndDiff = useCallback(
@@ -193,6 +211,69 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
       saveTimersRef.current.delete(wk);
     }, 250);
     saveTimersRef.current.set(wk, timer);
+  }, []);
+
+  const closeCardImpl = useCallback(
+    (repoId: number, worktreePath: string): void => {
+      const cards = openCardsByRepoRef.current.get(repoId) ?? [];
+      const closedIndex = cards.indexOf(worktreePath);
+      const nextCards = cards.filter((path) => path !== worktreePath);
+      if (nextCards.length > 0) {
+        openCardsByRepoRef.current.set(repoId, nextCards);
+      } else {
+        openCardsByRepoRef.current.delete(repoId);
+      }
+
+      disposeWorktree(repoId, worktreePath);
+
+      if (closedIndex >= 0 && activeIdRef.current === worktreePath) {
+        const afterClosed = nextCards.slice(closedIndex).find((path) => isWorktreeAlive(repoId, path));
+        let beforeClosed: string | undefined;
+        for (let index = closedIndex - 1; index >= 0; index -= 1) {
+          const candidate = nextCards[index];
+          if (candidate && isWorktreeAlive(repoId, candidate)) {
+            beforeClosed = candidate;
+            break;
+          }
+        }
+        const nextActive = afterClosed ?? beforeClosed ?? null;
+        if (nextActive) {
+          activeIdRef.current = nextActive;
+          setActive(nextActive);
+        }
+      }
+
+      triggerRender();
+    },
+    [disposeWorktree, isWorktreeAlive, setActive, triggerRender]
+  );
+
+  const openOrFocusImpl = useCallback(
+    (repoId: number, worktreePath: string): void => {
+      if (!isWorktreeAlive(repoId, worktreePath)) return;
+
+      const cards = openCardsByRepoRef.current.get(repoId) ?? [];
+      if (!cards.includes(worktreePath)) {
+        openCardsByRepoRef.current.set(repoId, [...cards, worktreePath]);
+      }
+
+      const wk = wkey(repoId, worktreePath);
+      if (!paneTreesRef.current.get(wk)) {
+        setTreeAndDiff(repoId, worktreePath, newLeaf(newLeafId()));
+      }
+
+      setActive(worktreePath);
+      triggerRender();
+    },
+    [isWorktreeAlive, setActive, setTreeAndDiff, triggerRender]
+  );
+
+  const isOpenImpl = useCallback((repoId: number, worktreePath: string): boolean => {
+    return openCardsByRepoRef.current.get(repoId)?.includes(worktreePath) ?? false;
+  }, []);
+
+  const getOpenCardsImpl = useCallback((repoId: number): string[] => {
+    return [...(openCardsByRepoRef.current.get(repoId) ?? [])];
   }, []);
 
   // ── 메서드 (소비자 노출용 impl) ──────────────────────
@@ -241,6 +322,32 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
       scheduleSave(repoId, worktreePath);
     },
     [setTreeAndDiff, scheduleSave]
+  );
+
+  const closeCurrentImpl = useCallback(
+    (repoId: number, worktreePath: string, leafId: string | null): void => {
+      const wk = wkey(repoId, worktreePath);
+      const tree = paneTreesRef.current.get(wk);
+      if (!tree) return;
+
+      const leafIds = findLeafIds(tree);
+      if (leafIds.length <= 1) {
+        closeCardImpl(repoId, worktreePath);
+        return;
+      }
+
+      const targetLeafId = leafId && leafIds.includes(leafId) ? leafId : leafIds[0];
+      if (!targetLeafId) return;
+      const next = closeLeaf(tree, targetLeafId);
+      if (!next) {
+        closeCardImpl(repoId, worktreePath);
+        return;
+      }
+
+      setTreeAndDiff(repoId, worktreePath, next);
+      scheduleSave(repoId, worktreePath);
+    },
+    [closeCardImpl, setTreeAndDiff, scheduleSave]
   );
 
   const resizeImpl = useCallback(
@@ -302,7 +409,7 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
     prevRepoIdsRef.current = currIds;
   }, [repos, disposeRepo]);
 
-  // 2) worktreesByRepo diff: 사라진 worktree 정리, 신규 worktree pane tree 로드
+  // 2) worktreesByRepo diff: 사라진 worktree 카드/자원 정리
   const prevWtKeysRef = useRef<Set<WorktreeKey>>(new Set());
   useEffect(() => {
     const currKeys = new Set<WorktreeKey>();
@@ -315,29 +422,11 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
         const [repoIdStr, ...rest] = key.split(":");
         const repoId = Number(repoIdStr);
         const worktreePath = rest.join(":");
-        disposeWorktree(repoId, worktreePath);
+        closeCardImpl(repoId, worktreePath);
       }
     }
-    // 신규 worktree pane tree 로드
-    for (const key of currKeys) {
-      if (prevWtKeysRef.current.has(key)) continue;
-      if (paneTreesRef.current.has(key)) continue;
-      if (loadingTreesRef.current.has(key)) continue;
-      loadingTreesRef.current.add(key);
-      const [repoIdStr, ...rest] = key.split(":");
-      const repoId = Number(repoIdStr);
-      const worktreePath = rest.join(":");
-      void (async () => {
-        const r = await api.pane.load({ repoId, worktreePath });
-        loadingTreesRef.current.delete(key);
-        // race 가드: 로드 중 worktree가 닫힌 경우 무시
-        if (!isWorktreeAlive(repoId, worktreePath)) return;
-        const initial = r.ok && r.value.tree ? r.value.tree : newLeaf(newLeafId());
-        setTreeAndDiff(repoId, worktreePath, initial);
-      })();
-    }
     prevWtKeysRef.current = currKeys;
-  }, [worktreesByRepo, disposeWorktree, setTreeAndDiff]);
+  }, [worktreesByRepo, closeCardImpl]);
 
   // 3) Provider unmount 시 pending save timers 정리 (HMR/테스트 안전)
   useEffect(() => {
@@ -359,6 +448,7 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
         getExit: (leafId) => exitInfoRef.current.get(lkey(repoId, worktreePath, leafId)) ?? null,
         split: (focusedId, orientation) => splitImpl(repoId, worktreePath, focusedId, orientation),
         closePane: (leafId) => closePaneImpl(repoId, worktreePath, leafId),
+        closeCurrent: (leafId) => closeCurrentImpl(repoId, worktreePath, leafId),
         resize: (path, sizes) => resizeImpl(repoId, worktreePath, path, sizes),
         newPane: () => newPaneImpl(repoId, worktreePath),
         updateLeafCommand: (leafId, cmd) =>
@@ -371,14 +461,45 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
         },
       };
     },
-    [splitImpl, closePaneImpl, resizeImpl, newPaneImpl, updateLeafCommandInternal, restartImpl]
+    [
+      splitImpl,
+      closePaneImpl,
+      closeCurrentImpl,
+      resizeImpl,
+      newPaneImpl,
+      updateLeafCommandInternal,
+      restartImpl,
+    ]
   );
 
-  return <SessionsCtx.Provider value={{ getOps }}>{children}</SessionsCtx.Provider>;
+  return (
+    <SessionsCtx.Provider
+      value={{
+        getOps,
+        openOrFocus: openOrFocusImpl,
+        closeCard: closeCardImpl,
+        isOpen: isOpenImpl,
+        getOpenCards: getOpenCardsImpl,
+      }}
+    >
+      {children}
+    </SessionsCtx.Provider>
+  );
 }
 
 export function useTerminalSessions(repoId: number, worktreePath: string): WorktreeOps {
   const v = useContext(SessionsCtx);
   if (!v) throw new Error("useTerminalSessions must be inside <TerminalSessionsProvider>");
   return v.getOps(repoId, worktreePath);
+}
+
+export function useTerminalSessionCards(): TerminalCardsOps {
+  const v = useContext(SessionsCtx);
+  if (!v) throw new Error("useTerminalSessionCards must be inside <TerminalSessionsProvider>");
+  return {
+    openOrFocus: v.openOrFocus,
+    closeCard: v.closeCard,
+    isOpen: v.isOpen,
+    getOpenCards: v.getOpenCards,
+  };
 }

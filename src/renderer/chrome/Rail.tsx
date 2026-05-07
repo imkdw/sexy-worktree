@@ -4,6 +4,8 @@ import { Icon } from "../icons/Icon";
 import { cn } from "../lib/cn";
 import { useWorktrees, worktreeId } from "../state/worktrees";
 import { useSelectMode } from "../state/selectMode";
+import { useRepos } from "../state/repos";
+import { useTerminalSessionCards } from "../state/terminalSessions";
 import { useRailWidth } from "./useRailWidth";
 import { Tooltip } from "../ui";
 
@@ -11,6 +13,8 @@ export function Rail(): React.JSX.Element {
   const { collapsed, isDragging, toggleCollapsed, startDrag } = useRailWidth();
   const asideRef = useRef<HTMLElement>(null);
   const { worktrees, activeId, setActive } = useWorktrees();
+  const { activeRepoId } = useRepos();
+  const { openOrFocus } = useTerminalSessionCards();
   const sm = useSelectMode();
   const selectableIds = worktrees.filter((w) => !w.isMain).map((w) => w.path);
   const selectedCount = selectableIds.filter((id) => sm.selected.has(id)).length;
@@ -131,6 +135,7 @@ export function Rail(): React.JSX.Element {
               onClick={(e) => {
                 if (!sm.enabled) {
                   setActive(id);
+                  if (activeRepoId) openOrFocus(activeRepoId, id);
                   return;
                 }
                 if (wt.isMain) return;

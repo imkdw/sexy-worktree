@@ -49,8 +49,7 @@ export function Card({ repoId, branch, cwd, active, onActivate }: CardProps): Re
   );
 
   const handleClose = useCallback(() => {
-    if (!focusedId) return;
-    ops.closePane(focusedId);
+    ops.closeCurrent(focusedId);
   }, [ops, focusedId]);
 
   const handleNewPane = useCallback(() => {
@@ -88,7 +87,7 @@ export function Card({ repoId, branch, cwd, active, onActivate }: CardProps): Re
           {branch}
         </span>
         <div className="flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-          <Tooltip label="Close pane (⌘W)">
+          <Tooltip label="Close terminal or pane (⌘W)">
             <button
               className="text-text-muted hover:text-accent inline-flex h-6 w-6 items-center justify-center rounded-sm"
               onClick={(e) => {
