@@ -53,6 +53,13 @@ function makeApi(): typeof window.api {
       get: vi.fn().mockResolvedValue(ok({ density: "3x3" as OverviewGridDensity })),
       set: vi.fn().mockResolvedValue(ok(undefined)),
     },
+    update: {
+      getState: vi.fn(),
+      check: vi.fn(),
+      download: vi.fn(),
+      openDownloaded: vi.fn(),
+      onEvent: vi.fn().mockReturnValue(() => {}),
+    },
     newWorktree: {
       create: vi.fn(),
       retry: vi.fn(),

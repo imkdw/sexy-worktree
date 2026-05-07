@@ -17,6 +17,7 @@ import { KeyboardShortcuts } from "./shortcuts/KeyboardShortcuts";
 import { NewWorktreeModal } from "./newWorktree/NewWorktreeModal";
 import { NewWorktreeProvider } from "./state/newWorktree";
 import { ToastProvider } from "./state/toast";
+import { UpdateProvider } from "./state/update";
 import { TerminalSessionsProvider } from "./state/terminalSessions";
 import { ToastLayer } from "./toast/Toast";
 import { NoRepo } from "./empty/NoRepo";
@@ -101,23 +102,25 @@ export function App(): React.JSX.Element {
   return (
     <TooltipProvider delayDuration={300}>
       <ToastProvider>
-        <ReposProvider>
-          <OverviewGridDensityProvider>
-            <WorktreesProvider>
-              <DeleteWorktreeProvider>
-                <TerminalSessionsProvider>
-                  <NewWorktreeProvider>
-                    <SelectModeProvider>
-                      <ModeProvider>
-                        <Shell />
-                      </ModeProvider>
-                    </SelectModeProvider>
-                  </NewWorktreeProvider>
-                </TerminalSessionsProvider>
-              </DeleteWorktreeProvider>
-            </WorktreesProvider>
-          </OverviewGridDensityProvider>
-        </ReposProvider>
+        <UpdateProvider>
+          <ReposProvider>
+            <OverviewGridDensityProvider>
+              <WorktreesProvider>
+                <DeleteWorktreeProvider>
+                  <TerminalSessionsProvider>
+                    <NewWorktreeProvider>
+                      <SelectModeProvider>
+                        <ModeProvider>
+                          <Shell />
+                        </ModeProvider>
+                      </SelectModeProvider>
+                    </NewWorktreeProvider>
+                  </TerminalSessionsProvider>
+                </DeleteWorktreeProvider>
+              </WorktreesProvider>
+            </OverviewGridDensityProvider>
+          </ReposProvider>
+        </UpdateProvider>
       </ToastProvider>
     </TooltipProvider>
   );

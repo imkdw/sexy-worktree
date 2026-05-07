@@ -3,6 +3,7 @@ import type { PaneNode } from "./pane";
 import type { JobSnapshot, JobEvent } from "./newWorktree";
 import type { DeleteWorktreeJobEvent, DeleteWorktreeJobSnapshot } from "./deleteWorktree";
 import type { OverviewGridDensity } from "./overviewGridDensity";
+import type { UpdateError, UpdateEvent, UpdateState } from "./update";
 
 export type RepoRow = {
   id: number;
@@ -102,6 +103,22 @@ export type IpcChannels = {
   "repo:close": {
     in: { id: number };
     out: Result<void, { message: string }>;
+  };
+  "update:getState": {
+    in: void;
+    out: Result<{ state: UpdateState }, never>;
+  };
+  "update:check": {
+    in: void;
+    out: Result<{ state: UpdateState }, UpdateError>;
+  };
+  "update:download": {
+    in: void;
+    out: Result<{ state: UpdateState }, UpdateError>;
+  };
+  "update:openDownloaded": {
+    in: void;
+    out: Result<{ state: UpdateState }, UpdateError>;
   };
   "worktree:list": {
     in: { repoPath: string };
@@ -240,3 +257,4 @@ export type IpcOut<C extends IpcChannel> = IpcChannels[C]["out"];
 
 export type NewWorktreeJobEvent = JobEvent;
 export type WorktreeDeleteJobEvent = DeleteWorktreeJobEvent;
+export type AppUpdateEvent = UpdateEvent;

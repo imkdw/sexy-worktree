@@ -89,6 +89,13 @@ function makeApi(events: {
       list: vi.fn(),
       remove: vi.fn(),
     },
+    update: {
+      getState: vi.fn(),
+      check: vi.fn(),
+      download: vi.fn(),
+      openDownloaded: vi.fn(),
+      onEvent: vi.fn().mockReturnValue(() => {}),
+    },
     config: {
       get: vi.fn(),
       saveJira: vi.fn(),

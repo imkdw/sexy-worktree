@@ -50,6 +50,23 @@ Use the GitHub Releases page as the public download surface. If the repository i
 
 Manual workflow runs are for internal checks. Their artifacts expire and may require repository access, so they are not the public distribution path.
 
+## In-App Update Checker
+
+Packaged builds check the public GitHub Releases feed for newer stable tags.
+When a newer arm64 DMG is available, the app shows an update toast. Clicking
+the update action downloads the DMG to the user's Downloads folder and opens it
+when the download completes.
+
+This is not a fully automatic updater. The app does not replace its own
+`.app` bundle, does not restart itself, and does not modify `/Applications`.
+The user still installs the update by dragging `Sexy Worktree.app` from the DMG
+into Applications.
+
+The current free update checker does not require Apple Developer Program
+membership, Developer ID signing, notarization, `electron-updater`, or GitHub
+tokens. When Developer ID signing and notarization are added, this release
+tag flow can be reused as the foundation for a full automatic updater.
+
 ## Opening The App
 
 The first iteration is ad-hoc signed and not notarized. On macOS, first launch can show a Gatekeeper warning.

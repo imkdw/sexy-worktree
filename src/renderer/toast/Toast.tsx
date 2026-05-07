@@ -18,6 +18,9 @@ const VARIANT_BORDER: Record<ToastKind, string> = {
   progress: "",
 };
 
+const ACTION_BUTTON_CLASS =
+  "border-border-strong bg-background text-text-secondary hover:bg-elevated hover:text-text-primary focus-visible:outline-accent-soft rounded-sm border px-2 py-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-2";
+
 export function ToastLayer(): React.JSX.Element {
   const { toasts, dismiss } = useToast();
   return (
@@ -40,6 +43,21 @@ export function ToastLayer(): React.JSX.Element {
           <div className="flex-1">
             <div className="text-text-primary text-sm font-medium">{t.title}</div>
             {t.description && <div className="text-text-muted mt-0.5 text-xs">{t.description}</div>}
+            {t.action && (
+              <button
+                type="button"
+                className={`${ACTION_BUTTON_CLASS} mt-2`}
+                onClick={() => {
+                  const action = t.action;
+                  if (action) {
+                    Promise.resolve(action.onClick()).catch(() => {});
+                  }
+                  dismiss(t.id);
+                }}
+              >
+                {t.action.label}
+              </button>
+            )}
           </div>
           <button className="text-text-muted" onClick={() => dismiss(t.id)}>
             <Icon icon={X} size={12} />

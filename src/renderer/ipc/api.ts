@@ -6,6 +6,7 @@ import type {
   PtyExitEvent,
   NewWorktreeJobEvent,
   WorktreeDeleteJobEvent,
+  AppUpdateEvent,
 } from "@shared/ipc";
 
 type Invoker<C extends keyof IpcChannels> =
@@ -22,6 +23,13 @@ type Api = {
     list: Invoker<"repo:list">;
     setActive: Invoker<"repo:setActive">;
     close: Invoker<"repo:close">;
+  };
+  update: {
+    getState: Invoker<"update:getState">;
+    check: Invoker<"update:check">;
+    download: Invoker<"update:download">;
+    openDownloaded: Invoker<"update:openDownloaded">;
+    onEvent: (cb: (e: AppUpdateEvent) => void) => () => void;
   };
   worktree: {
     list: Invoker<"worktree:list">;

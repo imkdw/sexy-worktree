@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { registerIpc } from "./ipc";
 import { closeDb, getDb } from "./db";
 import { ptyManager } from "./ipc/pty";
+import { updateManager } from "./update/manager";
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
@@ -44,6 +45,11 @@ app.whenReady().then(async () => {
   getDb(); // 어떤 IPC보다 먼저 마이그레이션이 실행되도록 보장
   registerIpc(() => mainWindow);
   await createWindow();
+  if (app.isPackaged) {
+    setTimeout(() => {
+      void updateManager.check({ silent: true }).catch(() => {});
+    }, 3000);
+  }
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow();
   });

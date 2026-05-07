@@ -7,6 +7,7 @@ import type {
   PtyExitEvent,
   NewWorktreeJobEvent,
   WorktreeDeleteJobEvent,
+  AppUpdateEvent,
 } from "@shared/ipc";
 
 type Invoker<C extends keyof IpcChannels> =
@@ -28,6 +29,17 @@ const api = {
     list: makeInvoker("repo:list"),
     setActive: makeInvoker("repo:setActive"),
     close: makeInvoker("repo:close"),
+  },
+  update: {
+    getState: makeInvoker("update:getState"),
+    check: makeInvoker("update:check"),
+    download: makeInvoker("update:download"),
+    openDownloaded: makeInvoker("update:openDownloaded"),
+    onEvent: (cb: (e: AppUpdateEvent) => void) => {
+      const fn = (_e: IpcRendererEvent, data: AppUpdateEvent): void => cb(data);
+      ipcRenderer.on("update:event", fn);
+      return () => ipcRenderer.off("update:event", fn);
+    },
   },
   worktree: {
     list: makeInvoker("worktree:list"),

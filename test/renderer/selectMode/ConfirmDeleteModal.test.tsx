@@ -79,6 +79,13 @@ function makeApi(overrides: Partial<ApiMock> = {}): ApiMock {
       list: vi.fn().mockResolvedValue(ok({ worktrees })),
       remove: vi.fn(),
     },
+    update: {
+      getState: vi.fn(),
+      check: vi.fn(),
+      download: vi.fn(),
+      openDownloaded: vi.fn(),
+      onEvent: vi.fn().mockReturnValue(() => {}),
+    },
     config: {
       get: vi.fn(),
       saveJira: vi.fn(),
