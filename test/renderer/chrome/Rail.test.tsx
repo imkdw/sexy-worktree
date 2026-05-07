@@ -36,6 +36,12 @@ const worktrees: Worktree[] = [
   },
 ];
 
+const openOrFocusMock = vi.fn();
+const setActiveMock = vi.fn();
+const toggleMock = vi.fn();
+const toggleRangeToMock = vi.fn();
+let selectionEnabled = false;
+
 function makeApi(): ApiMock {
   return {
     dialog: {
@@ -134,6 +140,10 @@ function installLocalStorage(): void {
   });
 }
 
+function installCanvasGetContext(): void {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(() => null);
+}
+
 async function flush(): Promise<void> {
   await act(async () => {
     await Promise.resolve();
@@ -143,6 +153,10 @@ async function flush(): Promise<void> {
 
 async function mountRail(): Promise<{ unmount: () => void }> {
   vi.resetModules();
+  vi.doUnmock("@renderer/state/repos");
+  vi.doUnmock("@renderer/state/worktrees");
+  vi.doUnmock("@renderer/state/selectMode");
+  vi.doUnmock("@renderer/state/terminalSessions");
   window.api = makeApi();
 
   const [
@@ -150,6 +164,7 @@ async function mountRail(): Promise<{ unmount: () => void }> {
     { ToastProvider },
     { ReposProvider },
     { WorktreesProvider },
+    { TerminalSessionsProvider },
     { SelectModeProvider },
     { Rail },
   ] = await Promise.all([
@@ -157,6 +172,7 @@ async function mountRail(): Promise<{ unmount: () => void }> {
     import("@renderer/state/toast"),
     import("@renderer/state/repos"),
     import("@renderer/state/worktrees"),
+    import("@renderer/state/terminalSessions"),
     import("@renderer/state/selectMode"),
     import("@renderer/chrome/Rail"),
   ]);
@@ -179,9 +195,13 @@ async function mountRail(): Promise<{ unmount: () => void }> {
             WorktreesProvider as ComponentType<{ children: ReactNode }>,
             null,
             createElement(
-              SelectModeProvider as ComponentType<{ children: ReactNode }>,
+              TerminalSessionsProvider as ComponentType<{ children: ReactNode }>,
               null,
-              createElement(Rail)
+              createElement(
+                SelectModeProvider as ComponentType<{ children: ReactNode }>,
+                null,
+                createElement(Rail)
+              )
             )
           )
         )
@@ -202,12 +222,91 @@ async function mountRail(): Promise<{ unmount: () => void }> {
   };
 }
 
+async function mountRailWithMocks(): Promise<{ unmount: () => void }> {
+  vi.resetModules();
+  vi.doMock("@renderer/state/repos", () => ({
+    useRepos: () => ({
+      repos: [repo],
+      activeRepoId: repo.id,
+      refresh: vi.fn(),
+      openRepo: vi.fn(),
+      selectRepo: vi.fn(),
+      closeRepo: vi.fn(),
+    }),
+  }));
+  vi.doMock("@renderer/state/worktrees", () => ({
+    worktreeId: (wt: Worktree) => wt.path,
+    useWorktrees: () => ({
+      worktreesByRepo: new Map([[repo.id, worktrees]]),
+      worktrees,
+      activeId: "/repo",
+      setActive: setActiveMock,
+      refresh: vi.fn(),
+      refreshRepo: vi.fn(),
+    }),
+  }));
+  vi.doMock("@renderer/state/selectMode", () => ({
+    useSelectMode: () => ({
+      enabled: selectionEnabled,
+      selected: new Set<string>(),
+      lastToggledId: null,
+      enter: vi.fn(),
+      exit: vi.fn(),
+      toggle: toggleMock,
+      toggleRangeTo: toggleRangeToMock,
+      clearSelected: vi.fn(),
+      selectAll: vi.fn(),
+      toggleAll: vi.fn(),
+    }),
+  }));
+  vi.doMock("@renderer/state/terminalSessions", () => ({
+    useTerminalSessionCards: () => ({
+      openOrFocus: openOrFocusMock,
+      closeCard: vi.fn(),
+      isOpen: vi.fn(),
+      getOpenCards: vi.fn(),
+    }),
+  }));
+
+  const [{ TooltipProvider }, { Rail }] = await Promise.all([
+    import("@renderer/ui"),
+    import("@renderer/chrome/Rail"),
+  ]);
+
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root: Root = createRoot(container);
+
+  await act(async () => {
+    root.render(
+      createElement(
+        TooltipProvider as ComponentType<{ children: ReactNode }>,
+        null,
+        createElement(Rail)
+      )
+    );
+  });
+
+  return {
+    unmount: () => {
+      act(() => root.unmount());
+      container.remove();
+    },
+  };
+}
+
 describe("Rail", () => {
   let cleanup: (() => void) | null = null;
 
   beforeEach(() => {
     document.body.innerHTML = "";
     installLocalStorage();
+    installCanvasGetContext();
+    openOrFocusMock.mockReset();
+    setActiveMock.mockReset();
+    toggleMock.mockReset();
+    toggleRangeToMock.mockReset();
+    selectionEnabled = false;
     cleanup = null;
   });
 
@@ -237,5 +336,45 @@ describe("Rail", () => {
     expect(
       affordanceClasses.some((className) => className.includes("group-hover:bg-elevated"))
     ).toBe(true);
+  });
+
+  it("opens or focuses the clicked worktree terminal card in normal mode", async () => {
+    const mounted = await mountRailWithMocks();
+    cleanup = mounted.unmount;
+
+    const featureLabel = [...document.querySelectorAll<HTMLElement>("span")].find(
+      (el) => el.textContent === "feature/visible-rail-handle"
+    );
+    const feature = featureLabel?.closest("div");
+
+    expect(feature).toBeTruthy();
+    expect(feature?.textContent).toContain("feature/visible-rail-handle");
+
+    await act(async () => {
+      feature?.click();
+    });
+
+    expect(setActiveMock).toHaveBeenCalledWith("/repo/worktrees/feature");
+    expect(openOrFocusMock).toHaveBeenCalledWith(1, "/repo/worktrees/feature");
+  });
+
+  it("does not open terminal cards from selection-mode worktree clicks", async () => {
+    selectionEnabled = true;
+    const mounted = await mountRailWithMocks();
+    cleanup = mounted.unmount;
+
+    const checkbox = document.querySelector<HTMLElement>(
+      '[aria-label="Select feature/visible-rail-handle"]'
+    );
+    const feature = checkbox?.parentElement;
+
+    expect(feature?.textContent).toContain("feature/visible-rail-handle");
+
+    await act(async () => {
+      feature?.click();
+    });
+
+    expect(toggleMock).toHaveBeenCalledWith("/repo/worktrees/feature");
+    expect(openOrFocusMock).not.toHaveBeenCalled();
   });
 });

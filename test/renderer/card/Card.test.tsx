@@ -94,6 +94,7 @@ function makeOps(tree: PaneNode): WorktreeOps {
     getExit: vi.fn().mockReturnValue(null),
     split: vi.fn().mockReturnValue(null),
     closePane: vi.fn(),
+    closeCurrent: vi.fn(),
     resize: vi.fn(),
     newPane: vi.fn().mockReturnValue("leaf-1"),
     updateLeafCommand: vi.fn(),
@@ -111,7 +112,7 @@ async function flush(): Promise<void> {
 
 async function mountCard(
   active: boolean
-): Promise<{ container: HTMLElement; unmount: () => void }> {
+): Promise<{ container: HTMLElement; ops: WorktreeOps; unmount: () => void }> {
   vi.resetModules();
   window.api = makeApi();
 
@@ -148,6 +149,7 @@ async function mountCard(
 
   return {
     container,
+    ops,
     unmount: () => {
       act(() => root.unmount());
       container.remove();
@@ -193,5 +195,20 @@ describe("Card terminal focus", () => {
     expect(pane.className).not.toContain("border-accent");
     expect(pane.className).not.toContain("terminal-pane-focus-ring");
     expect(pane.className).not.toContain("outline-accent-soft");
+  });
+
+  it("routes the header close action through closeCurrent", async () => {
+    const mounted = await mountCard(true);
+    cleanup = mounted.unmount;
+
+    const closeButton = mounted.container.querySelector<HTMLButtonElement>("header button");
+    expect(closeButton).toBeTruthy();
+
+    await act(async () => {
+      closeButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    expect(mounted.ops.closeCurrent).toHaveBeenCalledWith("leaf-1");
+    expect(mounted.ops.closePane).not.toHaveBeenCalled();
   });
 });
