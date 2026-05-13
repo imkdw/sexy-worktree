@@ -422,6 +422,22 @@ describe("ConfirmDeleteModal background delete start", () => {
     expect(api.worktreeDelete.start).not.toHaveBeenCalled();
   });
 
+  it("renders selected targets in a visible-scrollbar list", async () => {
+    const api = makeApi();
+    const mounted = await mountModal({
+      api,
+      selectedIds: [selectedWorktree, secondSelectedWorktree],
+    });
+    cleanup = mounted.unmount;
+
+    const targetList = document.querySelector('[aria-label="Worktrees selected for deletion"]');
+
+    expect(targetList).not.toBeNull();
+    expect(targetList?.classList.contains("dialog-confirm-delete-targets")).toBe(true);
+    expect(targetList?.classList.contains("scrollbar-chrome-visible")).toBe(true);
+    expect(targetList?.classList.contains("overflow-y-auto")).toBe(true);
+  });
+
   it("shows pending state while start IPC is in flight", async () => {
     const start = deferred<Awaited<ReturnType<ApiMock["worktreeDelete"]["start"]>>>();
     const api = makeApi({

@@ -235,16 +235,18 @@ Only **In progress** and **Failed** break the 1px hairline rule. PTY crash uses 
 
 ### 6-8. Scrollbar
 
-Scrollbars follow one of two policies.
+Scrollbars follow one of three policies.
 
-| Area                                   | Policy       | Expression                                                    |
-| -------------------------------------- | ------------ | ------------------------------------------------------------- |
-| Chrome (main area, Rail, modals, etc.) | Fully hidden | Scroll only via wheel/trackpad. Removes visual noise.         |
-| Terminal (xterm)                       | hover-reveal | Transparent by default; thumb only appears on viewport hover. |
+| Area                                             | Policy       | Expression                                                    |
+| ------------------------------------------------ | ------------ | ------------------------------------------------------------- |
+| Chrome (main area, Rail, modals, etc.)           | Fully hidden | Scroll only via wheel/trackpad. Removes visual noise.         |
+| Destructive confirmation lists with many targets | visible-thin | Thumb is always visible so the full risk surface is apparent. |
+| Terminal (xterm)                                 | hover-reveal | Transparent by default; thumb only appears on viewport hover. |
 
 - When creating a new `overflow-*` container in Chrome areas, you must apply the `scrollbar-hidden` utility alongside it.
-- Terminal thumb color is `--color-border-strong`, width 8px, radius full. The track is always transparent.
-- Any scrollbar expression outside these two policies (e.g. a custom-colored, always-visible scrollbar) is forbidden.
+- The only Chrome exception is a bounded destructive confirmation list, which uses `scrollbar-chrome-visible`.
+- Terminal and visible Chrome exception thumb color is `--color-border-strong`, width 8px, radius full. The track is always transparent.
+- Any scrollbar expression outside these three policies is forbidden.
 
 ## 7. State conventions
 
@@ -291,6 +293,7 @@ These are auto-reject in code review:
 
 > New decisions go on top (reverse-chronological). One line: **decision** — _why_.
 
+- **2026-05-13 — Added visible-thin scrollbar exception for destructive confirmation lists.** Hidden scrollbars made long target lists look complete, which could obscure actions and risk context in force-delete flows.
 - **2026-05-03 — Removed visible card split controls; split remains shortcut-only.** Keeps the card header quieter while preserving the fast keyboard workflow for users who still rely on `⌘D` / `⌘⇧D`.
 - **2026-05-01 — Adopted Darcula-style chrome (#2B2B2B / #3C3F41) with Darcula Blue (#4B6EAF) accent; terminal interior stays #000000.** Replaces the zinc-950 chrome + cyan-400 accent. The zinc layering had too small a per-step luminance gap, so cards visually merged with the background and the grid structure was hard to read. Darcula's chrome → panel jump (#2B2B2B → #3C3F41) gives instant card structure, and keeping the terminal at #000 creates a strong chrome ↔ terminal contrast that makes the terminal area the primary visual focus. Trade-off: gives up §1's "avoid VS Code-style palette" stance — distinctiveness now anchors on all-mono typography + in-window terminal CRUD, not on a unique color identity. New token `--color-terminal-bg` (#000000) needed because the card body and `--color-background` no longer match. State colors (amber / emerald / red) intentionally unchanged — already learned signals, and they pop harder against warm gray than against near-black.
 - **2026-04-28 — Adopted Radix Primitives (Dialog, Tabs, Tooltip, ToggleGroup, Toggle, Label).** Take headless behavior and a11y only; styling stays on our tokens. Wrappers live in `src/renderer/ui/`. Z-index policy: Dialog Overlay/Content `z-[1000]`, Tooltip `z-[1500]`, Toast `z-[2000]`. Replaces the hand-rolled modal backdrop / `stopPropagation` pattern — Esc, focus trap, and `aria-modal` come for free. Toast / ScrollArea / TabBar (repo tabs) intentionally OUT (policy clashes or wrong model fit).

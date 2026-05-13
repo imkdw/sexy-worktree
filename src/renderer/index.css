@@ -87,6 +87,30 @@
   padding: 0;
 }
 
+@utility dialog-confirm-delete-size {
+  max-height: min(560px, 90vh);
+}
+
+@utility dialog-confirm-delete-targets {
+  max-height: min(320px, 45vh);
+}
+
+@utility scrollbar-chrome-visible {
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: var(--color-border-strong);
+    border-radius: var(--radius-full);
+  }
+  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
 @utility settings-nav-width {
   width: 232px;
 }

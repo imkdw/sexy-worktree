@@ -50,7 +50,7 @@ src/renderer/
 - Do not touch UI without reading `DESIGN.md`.
 - No hex colors in TS/TSX, arbitrary Tailwind values, emoji/Unicode symbols, sans-serif, 14px body text, light mode, gradients, glows, colored shadows, or decorative accent.
 - Do not use `--color-accent` as generic hover; hover is usually surface/text strength.
-- Chrome `overflow-*` containers need `scrollbar-hidden`; terminal scrollbars use hover-reveal.
+- Chrome `overflow-*` containers need `scrollbar-hidden`; terminal scrollbars use hover-reveal. The only visible Chrome scrollbar exception is the destructive confirmation target list documented in `DESIGN.md`.
 - Do not bypass `ui/` wrappers for Radix primitives unless adding a new governed wrapper.
 - Do not couple xterm/PTy lifetime to individual leaf component mounts.
 - Do not add visible pane split controls unless `DESIGN.md` changes first.

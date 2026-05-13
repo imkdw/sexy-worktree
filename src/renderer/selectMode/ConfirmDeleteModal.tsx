@@ -61,11 +61,14 @@ export function ConfirmDeleteModal({ open, onClose }: Props): React.JSX.Element 
 
   return (
     <Dialog.Root open={open} onOpenChange={(openNext) => !openNext && !starting && onClose()}>
-      <Dialog.Content size="normal">
+      <Dialog.Content size="normal" className="dialog-confirm-delete-size">
         <Dialog.Title>
           Force delete {targets.length} worktree{targets.length === 1 ? "" : "s"}?
         </Dialog.Title>
-        <ul className="text-text-secondary list-none space-y-1 p-0 text-sm">
+        <ul
+          aria-label="Worktrees selected for deletion"
+          className="dialog-confirm-delete-targets scrollbar-chrome-visible text-text-secondary list-none space-y-1 overflow-y-auto p-0 text-sm"
+        >
           {targets.map((t) => (
             <li key={t.path}>{t.branch ?? t.path}</li>
           ))}
