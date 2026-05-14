@@ -33,6 +33,11 @@ type Api = {
   };
   worktree: {
     list: Invoker<"worktree:list">;
+    files: Invoker<"worktree:files">;
+    status: Invoker<"worktree:status">;
+    readFile: Invoker<"worktree:readFile">;
+    writeFile: Invoker<"worktree:writeFile">;
+    fileDiff: Invoker<"worktree:fileDiff">;
     remove: Invoker<"worktree:remove">;
   };
   config: {

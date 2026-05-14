@@ -43,6 +43,11 @@ const api = {
   },
   worktree: {
     list: makeInvoker("worktree:list"),
+    files: makeInvoker("worktree:files"),
+    status: makeInvoker("worktree:status"),
+    readFile: makeInvoker("worktree:readFile"),
+    writeFile: makeInvoker("worktree:writeFile"),
+    fileDiff: makeInvoker("worktree:fileDiff"),
     remove: makeInvoker("worktree:remove"),
   },
   config: {

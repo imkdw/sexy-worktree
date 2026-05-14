@@ -46,8 +46,7 @@ function item(
     status,
     errorMessage: status === "failed" ? "remove failed" : null,
     startedAt: status === "pending" ? null : 10,
-    finishedAt:
-      status === "deleted" || status === "failed" || status === "cancelled" ? 20 : null,
+    finishedAt: status === "deleted" || status === "failed" || status === "cancelled" ? 20 : null,
   };
 }
 
@@ -87,6 +86,11 @@ function makeApi(events: {
     },
     worktree: {
       list: vi.fn(),
+      files: vi.fn().mockResolvedValue(ok({ entries: [] })),
+      status: vi.fn().mockResolvedValue(ok({ changes: [] })),
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      fileDiff: vi.fn(),
       remove: vi.fn(),
     },
     update: {
@@ -194,9 +198,8 @@ async function mountProvider(options: MountOptions = {}): Promise<{
     useWorktrees: () => ({ refreshRepo }),
   }));
 
-  const { DeleteWorktreeProvider, useDeleteWorktreeJobs } = await import(
-    "@renderer/state/deleteWorktree"
-  );
+  const { DeleteWorktreeProvider, useDeleteWorktreeJobs } =
+    await import("@renderer/state/deleteWorktree");
 
   function Probe(): null {
     state = useDeleteWorktreeJobs();

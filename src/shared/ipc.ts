@@ -27,6 +27,40 @@ export type Worktree = {
 
 export type WorktreeListError = { kind: "git-failed"; stderr: string };
 
+export type WorktreeFileEntry = {
+  relativePath: string;
+  name: string;
+  kind: "directory" | "file";
+  depth: number;
+};
+
+export type WorktreeFileStatus =
+  | "modified"
+  | "added"
+  | "deleted"
+  | "renamed"
+  | "untracked"
+  | "conflicted";
+
+export type WorktreeFileDiffStatus = WorktreeFileStatus | "unchanged";
+
+export type WorktreeFileChange = {
+  relativePath: string;
+  originalPath: string | null;
+  status: WorktreeFileStatus;
+  indexStatus: string;
+  workingTreeStatus: string;
+};
+
+export type WorktreeFileError =
+  | { kind: "git-failed"; stderr: string }
+  | { kind: "outside-worktree"; path: string }
+  | { kind: "not-found"; path: string }
+  | { kind: "not-a-file"; path: string }
+  | { kind: "binary"; path: string }
+  | { kind: "read-failed"; message: string }
+  | { kind: "write-failed"; message: string };
+
 export type ConfigError =
   | { kind: "invalid"; issues: string[] }
   | { kind: "unreadable"; message: string };
@@ -123,6 +157,35 @@ export type IpcChannels = {
   "worktree:list": {
     in: { repoPath: string };
     out: Result<{ worktrees: Worktree[] }, WorktreeListError>;
+  };
+  "worktree:files": {
+    in: { worktreePath: string };
+    out: Result<{ entries: WorktreeFileEntry[] }, WorktreeFileError>;
+  };
+  "worktree:status": {
+    in: { worktreePath: string };
+    out: Result<{ changes: WorktreeFileChange[] }, WorktreeFileError>;
+  };
+  "worktree:readFile": {
+    in: { worktreePath: string; relativePath: string };
+    out: Result<{ relativePath: string; content: string }, WorktreeFileError>;
+  };
+  "worktree:writeFile": {
+    in: { worktreePath: string; relativePath: string; content: string };
+    out: Result<{ relativePath: string; content: string }, WorktreeFileError>;
+  };
+  "worktree:fileDiff": {
+    in: { worktreePath: string; relativePath: string };
+    out: Result<
+      {
+        relativePath: string;
+        originalPath: string | null;
+        status: WorktreeFileDiffStatus;
+        oldContent: string;
+        newContent: string;
+      },
+      WorktreeFileError
+    >;
   };
   "worktree:remove": {
     in: { repoPath: string; worktreePath: string };

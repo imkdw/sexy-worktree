@@ -1,5 +1,20 @@
-import { useRef } from "react";
-import { Check, CheckSquare, ChevronLeft, ChevronRight, Square, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type Key } from "react";
+import {
+  Check,
+  CheckSquare,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  FileDiff,
+  Folder,
+  FolderOpen,
+  GitBranch,
+  RefreshCw,
+  Square,
+  X,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import Tree, { type TreeNodeProps, type TreeProps } from "rc-tree";
 import { Icon } from "../icons/Icon";
 import { cn } from "../lib/cn";
 import { useWorktrees, worktreeId } from "../state/worktrees";
@@ -8,10 +23,26 @@ import { useRepos } from "../state/repos";
 import { useTerminalSessionCards } from "../state/terminalSessions";
 import { useRailWidth } from "./useRailWidth";
 import { Tooltip } from "../ui";
+import { useMode } from "../state/mode";
+import { useFocusWorkbench } from "../state/focusWorkbench";
+import type { WorktreeFileChange, WorktreeFileStatus } from "@shared/ipc";
 
 export function Rail(): React.JSX.Element {
   const { collapsed, isDragging, toggleCollapsed, startDrag } = useRailWidth();
   const asideRef = useRef<HTMLElement>(null);
+  const { mode } = useMode();
+  const sizing = { asideRef, collapsed, isDragging, toggleCollapsed, startDrag };
+
+  return mode === "focus" ? <FocusRail {...sizing} /> : <WorktreeRail {...sizing} />;
+}
+
+function WorktreeRail({
+  asideRef,
+  collapsed,
+  isDragging,
+  toggleCollapsed,
+  startDrag,
+}: RailSizingProps): React.JSX.Element {
   const { worktrees, activeId, setActive } = useWorktrees();
   const { activeRepoId } = useRepos();
   const { openOrFocus } = useTerminalSessionCards();
@@ -69,7 +100,7 @@ export function Rail(): React.JSX.Element {
     <aside
       ref={asideRef}
       className={cn(
-        "border-border-subtle bg-background relative flex w-[var(--rail-w)] shrink-0 flex-col border-r",
+        "border-border-subtle bg-background relative flex min-h-0 w-[var(--rail-w)] shrink-0 flex-col border-r",
         !isDragging && "transition-[width] duration-200",
         collapsed && "w-[var(--rail-w-collapsed)]"
       )}
@@ -117,7 +148,7 @@ export function Rail(): React.JSX.Element {
           </Tooltip>
         )}
       </div>
-      <div className="scrollbar-hidden flex-1 overflow-y-auto py-2">
+      <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto py-2">
         {worktrees.map((wt) => {
           const id = worktreeId(wt);
           const active = id === activeId;
@@ -218,5 +249,451 @@ export function Rail(): React.JSX.Element {
         />
       </div>
     </aside>
+  );
+}
+
+type RailSizingProps = {
+  asideRef: React.RefObject<HTMLElement | null>;
+  collapsed: boolean;
+  isDragging: boolean;
+  toggleCollapsed: () => void;
+  startDrag: (e: React.MouseEvent, element: HTMLElement) => void;
+};
+
+const STATUS_LABEL: Record<WorktreeFileStatus, string> = {
+  modified: "M",
+  added: "A",
+  deleted: "D",
+  renamed: "R",
+  untracked: "U",
+  conflicted: "C",
+};
+
+function statusClass(status: WorktreeFileStatus): string {
+  if (status === "added" || status === "untracked") return "text-success";
+  if (status === "deleted" || status === "conflicted") return "text-destructive";
+  if (status === "renamed") return "text-in-progress";
+  return "text-accent";
+}
+
+const FOCUS_TREE_ROW_HEIGHT = 32;
+const FOCUS_TREE_DEFAULT_HEIGHT = 640;
+const CHANGES_SECTION_KEY = "section:changes";
+
+type FocusTreeNodeKind = "section" | "change-directory" | "change";
+
+type FocusTreeNode = {
+  key: string;
+  title: string;
+  label: string;
+  kind: FocusTreeNodeKind;
+  relativePath?: string;
+  status?: WorktreeFileStatus;
+  count?: number;
+  children?: FocusTreeNode[];
+  isLeaf?: boolean;
+  selectable?: boolean;
+};
+
+type FocusTreeModel = {
+  treeData: FocusTreeNode[];
+  keySet: Set<string>;
+  ancestorKeysByKey: Map<string, string[]>;
+};
+
+function FocusRail({
+  asideRef,
+  collapsed,
+  isDragging,
+  toggleCollapsed,
+  startDrag,
+}: RailSizingProps): React.JSX.Element {
+  const { changes, loading, error, selected, selectDiff, refresh } = useFocusWorkbench();
+
+  const collapseLabel = collapsed ? "Expand" : "Collapse";
+  const hasChanges = changes.length > 0;
+
+  return (
+    <aside
+      ref={asideRef}
+      className={cn(
+        "border-border-subtle bg-background relative flex min-h-0 w-[var(--rail-w)] shrink-0 flex-col border-r",
+        !isDragging && "transition-[width] duration-200",
+        collapsed && "w-[var(--rail-w-collapsed)]"
+      )}
+    >
+      <div className="border-border-subtle border-b p-2">
+        <div className="flex items-center gap-2">
+          <span className="text-text-muted inline-flex h-8 w-8 shrink-0 items-center justify-center">
+            <Icon icon={GitBranch} size={14} />
+          </span>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <div className="text-text-secondary truncate text-xs">Changed Code</div>
+              <div className="text-text-muted truncate text-xs">
+                {hasChanges ? `${changes.length} changed` : "clean"}
+              </div>
+            </div>
+          )}
+          <Tooltip label="Refresh changes">
+            <button
+              aria-label="Refresh focus changes"
+              className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-colors duration-150 disabled:cursor-wait disabled:opacity-60"
+              disabled={loading}
+              onClick={() => void refresh()}
+            >
+              <Icon icon={RefreshCw} size={14} className={loading ? "animate-spin" : ""} />
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+      <FocusFileTree
+        collapsed={collapsed}
+        changes={changes}
+        error={error}
+        selected={selected}
+        selectDiff={selectDiff}
+      />
+      <div className="border-border-subtle flex justify-end border-t p-2">
+        <Tooltip label={collapseLabel}>
+          <button
+            aria-label={collapsed ? "Expand rail" : "Collapse rail"}
+            className="text-text-muted hover:bg-surface hover:text-text-primary inline-flex h-8 w-8 items-center justify-center rounded-sm transition-colors duration-150"
+            onClick={() => toggleCollapsed()}
+          >
+            <Icon icon={collapsed ? ChevronRight : ChevronLeft} size={14} />
+          </button>
+        </Tooltip>
+      </div>
+      <RailResizeHandle asideRef={asideRef} isDragging={isDragging} startDrag={startDrag} />
+    </aside>
+  );
+}
+
+function FocusFileTree({
+  collapsed,
+  changes,
+  error,
+  selected,
+  selectDiff,
+}: {
+  collapsed: boolean;
+  changes: WorktreeFileChange[];
+  error: string | null;
+  selected: { relativePath: string; view: "editor" | "diff" } | null;
+  selectDiff: (relativePath: string) => void;
+}): React.JSX.Element {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [expandedKeys, setExpandedKeys] = useState<Key[]>([CHANGES_SECTION_KEY]);
+  const treeModel = useMemo(() => buildFocusTreeModel(changes), [changes]);
+  const selectedKey = selected ? selectedTreeKey(selected) : null;
+  const selectedKeys = selectedKey && treeModel.keySet.has(selectedKey) ? [selectedKey] : [];
+  const expandedKeySet = useMemo(
+    () => new Set(expandedKeys.map((key) => String(key))),
+    [expandedKeys]
+  );
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateViewportHeight = (): void => {
+      setViewportHeight(container.clientHeight);
+    };
+
+    updateViewportHeight();
+    if (typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver(updateViewportHeight);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    setExpandedKeys((previous) => {
+      const next = new Set<Key>();
+      for (const key of previous) {
+        if (treeModel.keySet.has(String(key))) next.add(key);
+      }
+      for (const node of treeModel.treeData) {
+        next.add(node.key);
+      }
+      if (selectedKey) {
+        for (const key of treeModel.ancestorKeysByKey.get(selectedKey) ?? []) {
+          next.add(key);
+        }
+      }
+      const nextKeys = [...next];
+      return sameKeySet(previous, nextKeys) ? previous : nextKeys;
+    });
+  }, [selectedKey, treeModel]);
+
+  const handleSelect: TreeProps<FocusTreeNode>["onSelect"] = (_keys, info): void => {
+    const node = info.node;
+    if (node.kind === "change" && node.relativePath) {
+      selectDiff(node.relativePath);
+    }
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className="scrollbar-hidden min-h-0 flex-1 overflow-hidden py-2"
+      data-focus-tree-collapsed={collapsed ? "true" : undefined}
+      aria-label="Focus file explorer"
+    >
+      {error && !collapsed && (
+        <div className="text-destructive flex h-8 items-center truncate px-3 text-xs">{error}</div>
+      )}
+      {treeModel.treeData.length > 0 ? (
+        <Tree<FocusTreeNode>
+          prefixCls="focus-file-tree"
+          treeData={treeModel.treeData}
+          expandedKeys={expandedKeys}
+          selectedKeys={selectedKeys}
+          selectable
+          expandAction="click"
+          showIcon={false}
+          height={viewportHeight || FOCUS_TREE_DEFAULT_HEIGHT}
+          itemHeight={FOCUS_TREE_ROW_HEIGHT}
+          virtual
+          titleRender={(node) => (
+            <FocusTreeTitle
+              collapsed={collapsed}
+              expanded={expandedKeySet.has(node.key)}
+              node={node}
+            />
+          )}
+          switcherIcon={renderFocusTreeSwitcherIcon}
+          onExpand={(keys) => setExpandedKeys(keys)}
+          onSelect={handleSelect}
+        />
+      ) : !error && !collapsed ? (
+        <div className="text-text-muted flex h-8 items-center truncate px-3 text-xs">
+          No changed files
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function FocusTreeTitle({
+  collapsed,
+  expanded,
+  node,
+}: {
+  collapsed: boolean;
+  expanded: boolean;
+  node: FocusTreeNode;
+}): React.JSX.Element {
+  const TreeIcon = focusTreeIcon(node, expanded);
+  return (
+    <span
+      data-focus-tree-key={node.key}
+      data-focus-tree-row
+      data-focus-tree-section={node.kind === "section" ? "true" : undefined}
+    >
+      <Icon icon={TreeIcon} size={14} className="shrink-0" />
+      {!collapsed && (
+        <>
+          <span data-focus-tree-label>{node.label}</span>
+          {node.count != null && <span data-focus-tree-count>{node.count}</span>}
+          {node.status && (
+            <span data-focus-tree-status className={statusClass(node.status)}>
+              {STATUS_LABEL[node.status]}
+            </span>
+          )}
+        </>
+      )}
+    </span>
+  );
+}
+
+function renderFocusTreeSwitcherIcon(props: TreeNodeProps): React.ReactNode {
+  if (props.isLeaf) {
+    return <span aria-hidden="true" />;
+  }
+  return <Icon icon={props.expanded ? ChevronDown : ChevronRight} size={14} />;
+}
+
+function focusTreeIcon(node: FocusTreeNode, expanded: boolean): LucideIcon {
+  if (node.kind === "section") return FileDiff;
+  if (node.kind === "change") return FileDiff;
+  return expanded ? FolderOpen : Folder;
+}
+
+function selectedTreeKey(selected: { relativePath: string; view: "editor" | "diff" }): string {
+  return changeFileKey(selected.relativePath);
+}
+
+function buildFocusTreeModel(changes: WorktreeFileChange[]): FocusTreeModel {
+  const treeData: FocusTreeNode[] = [];
+
+  if (changes.length > 0) {
+    treeData.push({
+      key: CHANGES_SECTION_KEY,
+      title: "Changes",
+      label: "Changes",
+      kind: "section",
+      count: changes.length,
+      children: buildChangeTree(changes),
+      selectable: false,
+      isLeaf: false,
+    });
+  }
+
+  const keySet = new Set<string>();
+  const ancestorKeysByKey = new Map<string, string[]>();
+  indexTree(treeData, [], keySet, ancestorKeysByKey);
+
+  return { treeData, keySet, ancestorKeysByKey };
+}
+
+function buildChangeTree(changes: WorktreeFileChange[]): FocusTreeNode[] {
+  const rootChildren: FocusTreeNode[] = [];
+  const directories = new Map<string, FocusTreeNode>();
+  const files = new Set<string>();
+
+  function ensureDirectory(relativePath: string): FocusTreeNode {
+    const existing = directories.get(relativePath);
+    if (existing) return existing;
+
+    const parentPath = parentPathOf(relativePath);
+    const parentChildren = parentPath ? ensureDirectory(parentPath).children : rootChildren;
+    const node: FocusTreeNode = {
+      key: changeDirectoryKey(relativePath),
+      title: relativePath,
+      label: basenameOf(relativePath),
+      kind: "change-directory",
+      relativePath,
+      children: [],
+      selectable: false,
+      isLeaf: false,
+    };
+
+    directories.set(relativePath, node);
+    parentChildren?.push(node);
+    return node;
+  }
+
+  for (const change of changes) {
+    const relativePath = change.relativePath.replace(/\/+$/, "");
+    if (!relativePath) continue;
+
+    if (change.relativePath.endsWith("/")) {
+      ensureDirectory(relativePath).status = change.status;
+      continue;
+    }
+
+    if (files.has(change.relativePath)) continue;
+    files.add(change.relativePath);
+
+    const parentPath = parentPathOf(change.relativePath);
+    const parentChildren = parentPath ? ensureDirectory(parentPath).children : rootChildren;
+    parentChildren?.push({
+      key: changeFileKey(change.relativePath),
+      title: change.relativePath,
+      label: basenameOf(change.relativePath),
+      kind: "change",
+      relativePath: change.relativePath,
+      status: change.status,
+      isLeaf: true,
+    });
+  }
+
+  sortTreeChildren(rootChildren);
+  return rootChildren;
+}
+
+function sortTreeChildren(nodes: FocusTreeNode[]): void {
+  nodes.sort((a, b) => {
+    const aBranch = isBranchNode(a);
+    const bBranch = isBranchNode(b);
+    if (aBranch !== bBranch) return aBranch ? -1 : 1;
+    return a.label.localeCompare(b.label);
+  });
+  for (const node of nodes) {
+    if (node.children) sortTreeChildren(node.children);
+  }
+}
+
+function indexTree(
+  nodes: FocusTreeNode[],
+  ancestors: string[],
+  keySet: Set<string>,
+  ancestorKeysByKey: Map<string, string[]>
+): void {
+  for (const node of nodes) {
+    keySet.add(node.key);
+    ancestorKeysByKey.set(node.key, ancestors);
+    if (node.children) {
+      indexTree(node.children, [...ancestors, node.key], keySet, ancestorKeysByKey);
+    }
+  }
+}
+
+function isBranchNode(node: FocusTreeNode): boolean {
+  return node.kind === "section" || node.kind === "change-directory";
+}
+
+function sameKeySet(left: Key[], right: Key[]): boolean {
+  if (left.length !== right.length) return false;
+  const leftKeys = new Set(left.map((key) => String(key)));
+  return right.every((key) => leftKeys.has(String(key)));
+}
+
+function parentPathOf(relativePath: string): string {
+  const index = relativePath.lastIndexOf("/");
+  return index > 0 ? relativePath.slice(0, index) : "";
+}
+
+function basenameOf(relativePath: string): string {
+  const path = relativePath.replace(/\/+$/, "");
+  const index = path.lastIndexOf("/");
+  return index >= 0 ? path.slice(index + 1) : path;
+}
+
+function changeDirectoryKey(relativePath: string): string {
+  return `change-dir:${relativePath}`;
+}
+
+function changeFileKey(relativePath: string): string {
+  return `change:${relativePath}`;
+}
+
+function RailResizeHandle({
+  asideRef,
+  isDragging,
+  startDrag,
+}: Pick<RailSizingProps, "asideRef" | "isDragging" | "startDrag">): React.JSX.Element {
+  return (
+    <div
+      role="separator"
+      aria-label="Resize rail"
+      aria-orientation="vertical"
+      onMouseDown={(e) => {
+        if (asideRef.current) startDrag(e, asideRef.current);
+      }}
+      className={cn(
+        "group absolute top-0 right-0 h-full w-2 cursor-col-resize",
+        !isDragging && "transition-colors duration-150"
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "group-hover:bg-elevated pointer-events-none absolute top-0 right-0 h-full w-1 bg-transparent transition-colors duration-150",
+          isDragging && "bg-accent"
+        )}
+      />
+      <span
+        aria-hidden="true"
+        className={cn(
+          "bg-border-strong pointer-events-none absolute top-0 right-0 h-full w-px transition-colors duration-150",
+          isDragging && "bg-accent"
+        )}
+      />
+    </div>
   );
 }

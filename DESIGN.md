@@ -248,6 +248,16 @@ Scrollbars follow one of three policies.
 - Terminal and visible Chrome exception thumb color is `--color-border-strong`, width 8px, radius full. The track is always transparent.
 - Any scrollbar expression outside these three policies is forbidden.
 
+### 6-9. Focus workbench
+
+- Focus mode uses the left rail as a changed-code explorer and the main workspace as a horizontal split.
+- The focus changed-code explorer is an IDE-style expandable tree sourced from git status. It shows changed paths only; it must not show the full repository file tree.
+- Terminal is the first pane, file editor or diff is the second pane. Both panes use `flex-1 basis-1/2 min-w-0 min-h-0` so they share the available width without resizing each other during content changes.
+- Clicking a changed file in the rail opens the diff view. Diff rendering uses the Diffs.com `@pierre/diffs` React components.
+- The editor body uses `--color-terminal-bg` and terminal hover-reveal scrollbars.
+- Syntax highlighting must reuse existing semantic/text tokens: keywords use `--color-accent`, strings use `--color-success`, numbers use `--color-in-progress`, comments use `--color-text-muted`, and type-like identifiers use `--color-text-secondary`.
+- Do not add syntax-specific color tokens unless the existing palette cannot meet contrast.
+
 ## 7. State conventions
 
 | State             | Expression                                                                                                |
@@ -293,6 +303,8 @@ These are auto-reject in code review:
 
 > New decisions go on top (reverse-chronological). One line: **decision** — _why_.
 
+- **2026-05-14 — Focus rail changed-code navigation uses an expandable library-backed tree.** Focus mode is for reviewing the active worktree, so the rail shows git-status changes only while folders still expand on demand and the tree stays virtualized for large change sets.
+- **2026-05-14 — Focus mode uses horizontal terminal/editor panes with token-only syntax highlighting.** The file rail already owns navigation, so the main focus workspace should behave like a dense IDE split while preserving the app's terminal-black editing surface and existing semantic palette.
 - **2026-05-13 — Added visible-thin scrollbar exception for destructive confirmation lists.** Hidden scrollbars made long target lists look complete, which could obscure actions and risk context in force-delete flows.
 - **2026-05-03 — Removed visible card split controls; split remains shortcut-only.** Keeps the card header quieter while preserving the fast keyboard workflow for users who still rely on `⌘D` / `⌘⇧D`.
 - **2026-05-01 — Adopted Darcula-style chrome (#2B2B2B / #3C3F41) with Darcula Blue (#4B6EAF) accent; terminal interior stays #000000.** Replaces the zinc-950 chrome + cyan-400 accent. The zinc layering had too small a per-step luminance gap, so cards visually merged with the background and the grid structure was hard to read. Darcula's chrome → panel jump (#2B2B2B → #3C3F41) gives instant card structure, and keeping the terminal at #000 creates a strong chrome ↔ terminal contrast that makes the terminal area the primary visual focus. Trade-off: gives up §1's "avoid VS Code-style palette" stance — distinctiveness now anchors on all-mono typography + in-window terminal CRUD, not on a unique color identity. New token `--color-terminal-bg` (#000000) needed because the card body and `--color-background` no longer match. State colors (amber / emerald / red) intentionally unchanged — already learned signals, and they pop harder against warm gray than against near-black.

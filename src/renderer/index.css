@@ -143,8 +143,163 @@
   }
 }
 
+@utility code-editor-layer {
+  line-height: 18px;
+  tab-size: 2;
+}
+
+@utility code-editor-input {
+  color: transparent;
+  caret-color: var(--color-text-primary);
+  &::selection {
+    color: transparent;
+    background: var(--color-accent-soft);
+  }
+}
+
 @utility terminal-pane-focus-ring {
   box-shadow: inset 0 0 0 1px var(--color-accent-soft);
+}
+
+.focus-file-tree {
+  border: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+  outline: 0;
+}
+
+.focus-file-tree-list-holder {
+  scrollbar-width: none;
+}
+
+.focus-file-tree-list-holder::-webkit-scrollbar {
+  display: none;
+}
+
+.focus-file-tree-treenode {
+  display: flex;
+  align-items: center;
+  height: var(--spacing-8);
+  margin: 0;
+  padding: 0;
+  line-height: 18px;
+  list-style: none;
+  outline: 0;
+  white-space: nowrap;
+}
+
+.focus-file-tree-indent {
+  display: inline-flex;
+  height: var(--spacing-8);
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.focus-file-tree-indent-unit {
+  width: var(--spacing-3);
+}
+
+.focus-file-tree-switcher {
+  display: inline-flex;
+  width: var(--spacing-4);
+  height: var(--spacing-8);
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.focus-file-tree-switcher-noop {
+  color: transparent;
+  cursor: default;
+}
+
+.focus-file-tree-node-content-wrapper {
+  display: inline-flex;
+  min-width: 0;
+  height: var(--spacing-8);
+  align-items: center;
+  flex: 1;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast),
+    color var(--motion-fast),
+    box-shadow var(--motion-fast);
+}
+
+.focus-file-tree-treenode:hover .focus-file-tree-node-content-wrapper {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.focus-file-tree-node-selected {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: inset 0 0 0 var(--border-hairline) var(--color-border-strong);
+}
+
+.focus-file-tree-focused .focus-file-tree-treenode-active .focus-file-tree-node-content-wrapper {
+  box-shadow: inset 0 0 0 var(--border-hairline) var(--color-accent-soft);
+}
+
+.focus-file-tree-title {
+  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+}
+
+[data-focus-tree-row] {
+  display: inline-flex;
+  width: 100%;
+  min-width: 0;
+  height: var(--spacing-8);
+  align-items: center;
+  gap: var(--spacing-2);
+  padding-right: var(--spacing-2);
+}
+
+[data-focus-tree-section="true"] {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+[data-focus-tree-label] {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-focus-tree-count],
+[data-focus-tree-status] {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+[data-focus-tree-count] {
+  color: var(--color-text-muted);
+}
+
+[data-focus-tree-collapsed="true"] .focus-file-tree-indent {
+  display: none;
+}
+
+[data-focus-tree-collapsed="true"] .focus-file-tree-switcher {
+  width: var(--spacing-2);
+}
+
+[data-focus-tree-collapsed="true"] .focus-file-tree-node-content-wrapper {
+  justify-content: center;
+}
+
+[data-focus-tree-collapsed="true"] [data-focus-tree-row] {
+  justify-content: center;
+  padding-right: 0;
 }
 
 /* xterm-viewport: scrollbar-terminal 과 동일 동작.

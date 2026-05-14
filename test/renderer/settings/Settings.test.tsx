@@ -59,6 +59,11 @@ function makeApi(overrides: Partial<ApiMock> = {}): ApiMock {
     },
     worktree: {
       list: vi.fn(),
+      files: vi.fn().mockResolvedValue(ok({ entries: [] })),
+      status: vi.fn().mockResolvedValue(ok({ changes: [] })),
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      fileDiff: vi.fn(),
       remove: vi.fn(),
     },
     update: {

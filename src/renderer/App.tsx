@@ -7,10 +7,7 @@ import { ReposProvider, useRepos } from "./state/repos";
 import { WorktreesProvider, useWorktrees } from "./state/worktrees";
 import { ModeProvider, useMode } from "./state/mode";
 import { SelectModeProvider, useSelectMode } from "./state/selectMode";
-import {
-  OverviewGridDensityProvider,
-  useOverviewGridDensity,
-} from "./state/overviewGridDensity";
+import { OverviewGridDensityProvider, useOverviewGridDensity } from "./state/overviewGridDensity";
 import { Grid } from "./grid/Grid";
 import { Focus } from "./focus/Focus";
 import { KeyboardShortcuts } from "./shortcuts/KeyboardShortcuts";
@@ -26,6 +23,7 @@ import { TooltipProvider } from "./ui";
 import { ConfirmDeleteModal } from "./selectMode/ConfirmDeleteModal";
 import { DeleteWorktreeProvider } from "./state/deleteWorktree";
 import { BackgroundJobsPanel } from "./backgroundJobs/BackgroundJobsPanel";
+import { FocusWorkbenchProvider } from "./state/focusWorkbench";
 
 function Shell(): React.JSX.Element {
   const { mode, setMode } = useMode();
@@ -111,7 +109,9 @@ export function App(): React.JSX.Element {
                     <NewWorktreeProvider>
                       <SelectModeProvider>
                         <ModeProvider>
-                          <Shell />
+                          <FocusWorkbenchProvider>
+                            <Shell />
+                          </FocusWorkbenchProvider>
                         </ModeProvider>
                       </SelectModeProvider>
                     </NewWorktreeProvider>

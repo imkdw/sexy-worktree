@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, createElement, type ComponentType, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { RepoRow, Worktree } from "@shared/ipc";
+import type { RepoRow, Worktree, WorktreeFileChange } from "@shared/ipc";
 import { ok } from "@shared/result";
 
 declare global {
@@ -40,6 +40,8 @@ const openOrFocusMock = vi.fn();
 const setActiveMock = vi.fn();
 const toggleMock = vi.fn();
 const toggleRangeToMock = vi.fn();
+const selectDiffMock = vi.fn();
+const refreshFocusFilesMock = vi.fn();
 let selectionEnabled = false;
 
 function makeApi(): ApiMock {
@@ -57,6 +59,11 @@ function makeApi(): ApiMock {
     },
     worktree: {
       list: vi.fn().mockResolvedValue(ok({ worktrees })),
+      files: vi.fn().mockResolvedValue(ok({ entries: [] })),
+      status: vi.fn().mockResolvedValue(ok({ changes: [] })),
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      fileDiff: vi.fn(),
       remove: vi.fn(),
     },
     update: {
@@ -166,6 +173,7 @@ async function mountRail(): Promise<{ unmount: () => void }> {
     { WorktreesProvider },
     { TerminalSessionsProvider },
     { SelectModeProvider },
+    { ModeProvider },
     { Rail },
   ] = await Promise.all([
     import("@renderer/ui"),
@@ -174,6 +182,7 @@ async function mountRail(): Promise<{ unmount: () => void }> {
     import("@renderer/state/worktrees"),
     import("@renderer/state/terminalSessions"),
     import("@renderer/state/selectMode"),
+    import("@renderer/state/mode"),
     import("@renderer/chrome/Rail"),
   ]);
 
@@ -200,7 +209,11 @@ async function mountRail(): Promise<{ unmount: () => void }> {
               createElement(
                 SelectModeProvider as ComponentType<{ children: ReactNode }>,
                 null,
-                createElement(Rail)
+                createElement(
+                  ModeProvider as ComponentType<{ children: ReactNode }>,
+                  null,
+                  createElement(Rail)
+                )
               )
             )
           )
@@ -267,6 +280,13 @@ async function mountRailWithMocks(): Promise<{ unmount: () => void }> {
       getOpenCards: vi.fn(),
     }),
   }));
+  vi.doMock("@renderer/state/mode", () => ({
+    useMode: () => ({
+      mode: "overview",
+      setMode: vi.fn(),
+      toggle: vi.fn(),
+    }),
+  }));
 
   const [{ TooltipProvider }, { Rail }] = await Promise.all([
     import("@renderer/ui"),
@@ -295,6 +315,74 @@ async function mountRailWithMocks(): Promise<{ unmount: () => void }> {
   };
 }
 
+async function mountFocusRailWithMocks({
+  changes = [
+    {
+      relativePath: "src/App.tsx",
+      originalPath: null,
+      status: "modified",
+      indexStatus: " ",
+      workingTreeStatus: "M",
+    },
+  ],
+}: {
+  changes?: WorktreeFileChange[];
+} = {}): Promise<{ unmount: () => void }> {
+  vi.resetModules();
+  vi.doMock("@renderer/state/mode", () => ({
+    useMode: () => ({
+      mode: "focus",
+      setMode: vi.fn(),
+      toggle: vi.fn(),
+    }),
+  }));
+  vi.doMock("@renderer/state/focusWorkbench", () => ({
+    useFocusWorkbench: () => ({
+      activeWorktreePath: "/repo",
+      changes,
+      loading: false,
+      error: null,
+      selected: null,
+      selectDiff: selectDiffMock,
+      refresh: refreshFocusFilesMock,
+    }),
+  }));
+
+  const [{ TooltipProvider }, { Rail }] = await Promise.all([
+    import("@renderer/ui"),
+    import("@renderer/chrome/Rail"),
+  ]);
+
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root: Root = createRoot(container);
+
+  await act(async () => {
+    root.render(
+      createElement(
+        TooltipProvider as ComponentType<{ children: ReactNode }>,
+        null,
+        createElement(Rail)
+      )
+    );
+  });
+
+  return {
+    unmount: () => {
+      act(() => root.unmount());
+      container.remove();
+    },
+  };
+}
+
+function focusTreeNodeContent(key: string): HTMLElement | null {
+  return (
+    document
+      .querySelector<HTMLElement>(`[data-focus-tree-key="${key}"]`)
+      ?.closest<HTMLElement>(".focus-file-tree-node-content-wrapper") ?? null
+  );
+}
+
 describe("Rail", () => {
   let cleanup: (() => void) | null = null;
 
@@ -306,6 +394,8 @@ describe("Rail", () => {
     setActiveMock.mockReset();
     toggleMock.mockReset();
     toggleRangeToMock.mockReset();
+    selectDiffMock.mockReset();
+    refreshFocusFilesMock.mockReset();
     selectionEnabled = false;
     cleanup = null;
   });
@@ -376,5 +466,55 @@ describe("Rail", () => {
 
     expect(toggleMock).toHaveBeenCalledWith("/repo/worktrees/feature");
     expect(openOrFocusMock).not.toHaveBeenCalled();
+  });
+
+  it("shows only focus-mode changes instead of worktrees", async () => {
+    const mounted = await mountFocusRailWithMocks();
+    cleanup = mounted.unmount;
+
+    expect(document.body.textContent).toContain("Changed Code");
+    expect(document.body.textContent).toContain("Changes");
+    expect(document.body.textContent).toContain("1 changed");
+    expect(document.querySelector('[data-focus-tree-key="change-dir:src"]')).toBeTruthy();
+    expect(document.querySelector('[data-focus-tree-key="change:src/App.tsx"]')).toBeNull();
+    expect(document.querySelector('[data-focus-tree-key="dir:src"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("Files");
+    expect(document.body.textContent).not.toContain("feature/visible-rail-handle");
+
+    await act(async () => {
+      focusTreeNodeContent("change-dir:src")?.click();
+    });
+    expect(document.querySelector('[data-focus-tree-key="change:src/App.tsx"]')).toBeTruthy();
+
+    await act(async () => {
+      focusTreeNodeContent("change:src/App.tsx")?.click();
+    });
+    expect(selectDiffMock).toHaveBeenCalledWith("src/App.tsx");
+  });
+
+  it("virtualizes large focus-mode change lists", async () => {
+    const changes: WorktreeFileChange[] = Array.from({ length: 200 }, (_, index) => ({
+      relativePath: `src/file-${index}.ts`,
+      originalPath: null,
+      status: "modified",
+      indexStatus: " ",
+      workingTreeStatus: "M",
+    }));
+    const mounted = await mountFocusRailWithMocks({ changes });
+    cleanup = mounted.unmount;
+
+    expect(document.body.textContent).toContain("Changes");
+    expect(document.querySelector('[data-focus-tree-key="change-dir:src"]')).toBeTruthy();
+    expect(document.body.textContent).not.toContain("file-0.ts");
+
+    await act(async () => {
+      focusTreeNodeContent("change-dir:src")?.click();
+    });
+
+    expect(document.body.textContent).toContain("file-0.ts");
+    expect(document.body.textContent).not.toContain("file-199.ts");
+    expect(
+      document.querySelectorAll('[data-focus-tree-key^="change:src/file-"]').length
+    ).toBeLessThan(80);
   });
 });

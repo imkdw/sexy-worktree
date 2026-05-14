@@ -80,6 +80,11 @@ function makeApi(): ApiMock {
     },
     worktree: {
       list: vi.fn(),
+      files: vi.fn().mockResolvedValue(ok({ entries: [] })),
+      status: vi.fn().mockResolvedValue(ok({ changes: [] })),
+      readFile: vi.fn(),
+      writeFile: vi.fn(),
+      fileDiff: vi.fn(),
       remove: vi.fn(),
     },
     config: {
@@ -216,9 +221,7 @@ async function mountProvider(): Promise<{
 
   async function render(): Promise<void> {
     await act(async () => {
-      root.render(
-        createElement(module.TerminalSessionsProvider, null, createElement(Probe))
-      );
+      root.render(createElement(module.TerminalSessionsProvider, null, createElement(Probe)));
     });
     await flush();
   }
@@ -241,16 +244,16 @@ async function mountProvider(): Promise<{
   };
 }
 
-function requireCards(
-  latest: { cards: ReturnType<TerminalSessionsModule["useTerminalSessionCards"]> | null }
-): ReturnType<TerminalSessionsModule["useTerminalSessionCards"]> {
+function requireCards(latest: {
+  cards: ReturnType<TerminalSessionsModule["useTerminalSessionCards"]> | null;
+}): ReturnType<TerminalSessionsModule["useTerminalSessionCards"]> {
   if (!latest.cards) throw new Error("expected terminal session cards API");
   return latest.cards;
 }
 
-function requireFeatureOps(
-  latest: { featureOps: ReturnType<TerminalSessionsModule["useTerminalSessions"]> | null }
-): ReturnType<TerminalSessionsModule["useTerminalSessions"]> {
+function requireFeatureOps(latest: {
+  featureOps: ReturnType<TerminalSessionsModule["useTerminalSessions"]> | null;
+}): ReturnType<TerminalSessionsModule["useTerminalSessions"]> {
   if (!latest.featureOps) throw new Error("expected feature worktree ops");
   return latest.featureOps;
 }

@@ -3,10 +3,10 @@ import { ok, err, type Result } from "@shared/result";
 
 export type GitError = { code: number; stderr: string; stdout: string };
 
-export async function gitExec(
+export async function gitExecBuffer(
   args: string[],
   opts: { cwd: string; timeoutMs?: number }
-): Promise<Result<string, GitError>> {
+): Promise<Result<Buffer, GitError>> {
   return await new Promise((resolve) => {
     const child = spawn("git", args, { cwd: opts.cwd });
     const out: Buffer[] = [];
@@ -23,10 +23,19 @@ export async function gitExec(
     });
     child.on("close", (code) => {
       if (timer) clearTimeout(timer);
-      const stdout = Buffer.concat(out).toString("utf8");
+      const stdout = Buffer.concat(out);
       const stderr = Buffer.concat(errs).toString("utf8");
-      if (code === 0) resolve(ok(stdout.trimEnd()));
-      else resolve(err({ code: code ?? -1, stderr, stdout }));
+      if (code === 0) resolve(ok(stdout));
+      else resolve(err({ code: code ?? -1, stderr, stdout: stdout.toString("utf8") }));
     });
   });
+}
+
+export async function gitExec(
+  args: string[],
+  opts: { cwd: string; timeoutMs?: number }
+): Promise<Result<string, GitError>> {
+  const r = await gitExecBuffer(args, opts);
+  if (!r.ok) return r;
+  return ok(r.value.toString("utf8").trimEnd());
 }
