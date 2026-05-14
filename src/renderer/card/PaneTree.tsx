@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Allotment } from "allotment";
 import "allotment/dist/style.css";
-import { Play, AlertCircle, FolderX } from "lucide-react";
+import { AlertCircle, FolderX } from "lucide-react";
 import type { PaneNode } from "@shared/pane";
 import type { PtySpawnError } from "@shared/ipc";
 import type { LeafEntry } from "../terminal/Terminal";
 import { Icon } from "../icons/Icon";
-import { api } from "../ipc/api";
 import { cn } from "../lib/cn";
 
 export type LeafExit =
@@ -44,7 +43,6 @@ export function PaneTree({
         <LeafSlot
           key={node.id}
           focused={node.id === focusedId}
-          lastCommand={node.lastCommand}
           entry={getEntry(node.id)}
           exit={getExit(node.id)}
           onFocus={() => onFocusLeaf(node.id)}
@@ -69,7 +67,6 @@ export function PaneTree({
 
 type LeafSlotProps = {
   focused: boolean;
-  lastCommand: string;
   entry: LeafEntry | null;
   exit: LeafExit | null;
   onFocus: () => void;
@@ -83,18 +80,12 @@ type LeafSlotProps = {
  */
 function LeafSlot({
   focused,
-  lastCommand,
   entry,
   exit,
   onFocus,
   onRestart,
 }: LeafSlotProps): React.JSX.Element {
   const placeholderRef = useRef<HTMLDivElement>(null);
-  const [replayed, setReplayed] = useState(false);
-
-  useEffect(() => {
-    setReplayed(false);
-  }, [lastCommand]);
 
   useEffect(() => {
     if (!entry || !placeholderRef.current) return;
@@ -140,23 +131,6 @@ function LeafSlot({
 
   return (
     <div className={slotClass} onClick={onFocus}>
-      {lastCommand && !replayed && !exit && (
-        <div className="text-text-muted flex items-center gap-2 p-2 text-xs">
-          <span>
-            Last: <code className="text-text-secondary">{lastCommand}</code>
-          </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (entry?.ptyId) void api.pty.write({ id: entry.ptyId, data: lastCommand + "\n" });
-              setReplayed(true);
-            }}
-            className="text-accent inline-flex items-center gap-1"
-          >
-            <Icon icon={Play} size={12} /> Replay
-          </button>
-        </div>
-      )}
       <div className="relative flex h-full min-h-0 flex-1 flex-col">
         <div ref={placeholderRef} className="bg-terminal-bg h-full w-full flex-1 p-2" />
         {exit?.kind === "exited" && (

@@ -116,12 +116,13 @@ async function flush(): Promise<void> {
 }
 
 async function mountCard(
-  active: boolean
+  active: boolean,
+  tree: PaneNode = { kind: "leaf", id: "leaf-1", lastCommand: "" }
 ): Promise<{ container: HTMLElement; ops: WorktreeOps; unmount: () => void }> {
   vi.resetModules();
   window.api = makeApi();
 
-  const ops = makeOps({ kind: "leaf", id: "leaf-1", lastCommand: "" });
+  const ops = makeOps(tree);
   vi.doMock("@renderer/state/terminalSessions", () => ({
     useTerminalSessions: () => ops,
   }));
@@ -200,6 +201,19 @@ describe("Card terminal focus", () => {
     expect(pane.className).not.toContain("border-accent");
     expect(pane.className).not.toContain("terminal-pane-focus-ring");
     expect(pane.className).not.toContain("outline-accent-soft");
+  });
+
+  it("does not render the previous command hint in terminal panes", async () => {
+    const mounted = await mountCard(true, {
+      kind: "leaf",
+      id: "leaf-1",
+      lastCommand: "pnpm test",
+    });
+    cleanup = mounted.unmount;
+
+    expect(mounted.container.textContent).not.toContain("Last:");
+    expect(mounted.container.textContent).not.toContain("pnpm test");
+    expect(mounted.container.textContent).not.toContain("Replay");
   });
 
   it("routes the header close action through closeCurrent", async () => {
