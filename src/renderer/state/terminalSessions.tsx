@@ -96,7 +96,7 @@ export function TerminalSessionsProvider({ children }: { children: ReactNode }):
     (repoId: number, worktreePath: string, leafId: string): void => {
       const key = lkey(repoId, worktreePath, leafId);
       if (entriesRef.current.has(key)) return; // idempotent guard
-      const entry = createLeafEntry();
+      const entry = createLeafEntry({ worktreePath });
       entry.onCommandRun = (cmd) => updateLeafCommandInternal(repoId, worktreePath, leafId, cmd);
       entry.onExit = (code, lastBytes) => {
         exitInfoRef.current.set(key, { kind: "exited", code, lastBytes });

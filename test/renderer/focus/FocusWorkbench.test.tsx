@@ -15,8 +15,9 @@ type ApiMock = typeof window.api;
 const refreshMock = vi.fn();
 const selectFileMock = vi.fn();
 const toastPushMock = vi.fn();
+let readFileContent = 'const color = "blue";\n';
 
-let selected: { relativePath: string; view: "editor" | "diff" } | null = {
+let selected: { relativePath: string; view: "diff" | "editor" | "markdown" } | null = {
   relativePath: "src/App.tsx",
   view: "editor",
 };
@@ -40,7 +41,9 @@ function makeApi(): ApiMock {
       status: vi.fn().mockResolvedValue(ok({ changes: [] })),
       readFile: vi
         .fn()
-        .mockResolvedValue(ok({ relativePath: "src/App.tsx", content: 'const color = "blue";\n' })),
+        .mockImplementation(({ relativePath }: { relativePath: string }) =>
+          Promise.resolve(ok({ relativePath, content: readFileContent }))
+        ),
       writeFile: vi
         .fn()
         .mockResolvedValue(ok({ relativePath: "src/App.tsx", content: "new text\n" })),
@@ -143,7 +146,24 @@ async function mountWorkbench(): Promise<{
     useToast: () => ({ push: toastPushMock }),
   }));
   vi.doMock("@pierre/diffs/react", () => ({
-    Virtualizer: ({ children }: { children: ReactNode }) => createElement("div", null, children),
+    Virtualizer: ({
+      children,
+      className,
+      contentClassName,
+    }: {
+      children: ReactNode;
+      className?: string;
+      contentClassName?: string;
+    }) =>
+      createElement(
+        "div",
+        { className },
+        createElement(
+          "div",
+          { className: contentClassName, "data-testid": "diff-content" },
+          children
+        )
+      ),
     MultiFileDiff: ({
       oldFile,
       newFile,
@@ -187,6 +207,7 @@ describe("FocusWorkbench", () => {
 
   beforeEach(() => {
     document.body.innerHTML = "";
+    readFileContent = 'const color = "blue";\n';
     selected = { relativePath: "src/App.tsx", view: "editor" };
     refreshMock.mockReset();
     selectFileMock.mockReset();
@@ -268,5 +289,40 @@ describe("FocusWorkbench", () => {
       editButton?.click();
     });
     expect(selectFileMock).toHaveBeenCalledWith("src/App.tsx");
+  });
+
+  it("renders a selected markdown file through the markdown preview", async () => {
+    selected = { relativePath: "docs/notes.md", view: "markdown" };
+    readFileContent = "# Release notes\n\n- [x] Ship markdown preview\n";
+    const mounted = await mountWorkbench();
+    cleanup = mounted.unmount;
+
+    expect(mounted.api.worktree.readFile).toHaveBeenCalledWith({
+      worktreePath: "/repo",
+      relativePath: "docs/notes.md",
+    });
+    expect(mounted.container.querySelector("textarea")).toBeNull();
+    expect(mounted.container.querySelector("h1")?.textContent).toBe("Release notes");
+    expect(mounted.container.textContent).toContain("Ship markdown preview");
+
+    const editButton = mounted.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Open file editor"]'
+    );
+    await act(async () => {
+      editButton?.click();
+    });
+    expect(selectFileMock).toHaveBeenCalledWith("docs/notes.md");
+  });
+
+  it("renders diffs without workbench content padding", async () => {
+    selected = { relativePath: "src/App.tsx", view: "diff" };
+    const mounted = await mountWorkbench();
+    cleanup = mounted.unmount;
+
+    const diffContent = mounted.container.querySelector<HTMLElement>(
+      '[data-testid="diff-content"]'
+    );
+    expect(diffContent?.className).not.toContain("py-3");
+    expect(diffContent?.className).not.toContain("p-3");
   });
 });

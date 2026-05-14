@@ -1,3 +1,5 @@
+import { isMarkdownFile } from "./fileTypes";
+
 export type HighlightTokenKind = "comment" | "keyword" | "number" | "plain" | "string" | "type";
 
 export type HighlightSegment = {
@@ -33,7 +35,6 @@ const CODE_EXTENSIONS = new Set([
 
 const SHELL_EXTENSIONS = new Set(["bash", "env", "fish", "sh", "zsh"]);
 const MARKUP_EXTENSIONS = new Set(["html", "svg", "xml"]);
-const MARKDOWN_EXTENSIONS = new Set(["md", "mdx", "markdown"]);
 
 export function highlightSource(source: string, relativePath: string): HighlightSegment[] {
   const language = detectLanguage(relativePath);
@@ -51,7 +52,7 @@ function detectLanguage(relativePath: string): "code" | "markdown" | "markup" | 
   if (basename === "dockerfile" || basename === "makefile") return "shell";
   if (extension && SHELL_EXTENSIONS.has(extension)) return "shell";
   if (extension && MARKUP_EXTENSIONS.has(extension)) return "markup";
-  if (extension && MARKDOWN_EXTENSIONS.has(extension)) return "markdown";
+  if (isMarkdownFile(relativePath)) return "markdown";
   if (extension && CODE_EXTENSIONS.has(extension)) return "code";
   if (basename === "package.json" || basename === "tsconfig.json") return "code";
   return "plain";

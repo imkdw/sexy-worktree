@@ -252,8 +252,10 @@ Scrollbars follow one of three policies.
 
 - Focus mode uses the left rail as a changed-code explorer and the main workspace as a horizontal split.
 - The focus changed-code explorer is an IDE-style expandable tree sourced from git status. It shows changed paths only; it must not show the full repository file tree.
-- Terminal is the first pane, file editor or diff is the second pane. Both panes use `flex-1 basis-1/2 min-w-0 min-h-0` so they share the available width without resizing each other during content changes.
+- Terminal is the first pane, file editor/diff/markdown preview is the second pane. The main split has one visible vertical resize handle between those two panes, stores the user's split preference locally, and clamps both sides so neither pane can collapse into unusable width.
 - Clicking a changed file in the rail opens the diff view. Diff rendering uses the Diffs.com `@pierre/diffs` React components.
+- Clicking a changed markdown file in the rail opens a read-only markdown preview instead of a code/diff surface. Markdown rendering uses `react-markdown` with GitHub Flavored Markdown support.
+- Diff rendering should fill the workbench width; keep vertical breathing room if needed, but do not add side gutters around the Diffs.com surface.
 - The editor body uses `--color-terminal-bg` and terminal hover-reveal scrollbars.
 - Syntax highlighting must reuse existing semantic/text tokens: keywords use `--color-accent`, strings use `--color-success`, numbers use `--color-in-progress`, comments use `--color-text-muted`, and type-like identifiers use `--color-text-secondary`.
 - Do not add syntax-specific color tokens unless the existing palette cannot meet contrast.
@@ -303,6 +305,7 @@ These are auto-reject in code review:
 
 > New decisions go on top (reverse-chronological). One line: **decision** — _why_.
 
+- **2026-05-14 — Focus mode renders markdown changes as document previews and lets users resize the terminal/workbench split.** Markdown is document content first, so changed `.md` files open through `react-markdown` instead of a code surface. The main focus split now has a single visible handle because the terminal and document/review pane need different widths depending on the task.
 - **2026-05-14 — Focus rail changed-code navigation uses an expandable library-backed tree.** Focus mode is for reviewing the active worktree, so the rail shows git-status changes only while folders still expand on demand and the tree stays virtualized for large change sets.
 - **2026-05-14 — Focus mode uses horizontal terminal/editor panes with token-only syntax highlighting.** The file rail already owns navigation, so the main focus workspace should behave like a dense IDE split while preserving the app's terminal-black editing surface and existing semantic palette.
 - **2026-05-13 — Added visible-thin scrollbar exception for destructive confirmation lists.** Hidden scrollbars made long target lists look complete, which could obscure actions and risk context in force-delete flows.

@@ -4,6 +4,7 @@ import "@xterm/xterm/css/xterm.css";
 import type { PtySpawnError } from "@shared/ipc";
 import { api } from "../ipc/api";
 import { cssVar } from "../lib/cssVar";
+import { installMarkdownPathLinkProvider } from "./markdownPathLinks";
 
 export type LeafEntry = {
   term: XTerm;
@@ -26,7 +27,7 @@ export type SpawnResult = { ok: true; id: string } | { ok: false; error: PtySpaw
  * 한 번 만들어진 인스턴스는 React 컴포넌트 mount/unmount와 무관하게
  * 카드 레벨에서 보관하여 분할 시에도 출력 버퍼가 보존되도록 한다.
  */
-export function createLeafEntry(): LeafEntry {
+export function createLeafEntry({ worktreePath }: { worktreePath: string }): LeafEntry {
   const term = new XTerm({
     fontFamily: "JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace",
     fontSize: 12,
@@ -42,6 +43,7 @@ export function createLeafEntry(): LeafEntry {
   });
   const fit = new FitAddon();
   term.loadAddon(fit);
+  installMarkdownPathLinkProvider(term, worktreePath);
 
   term.attachCustomKeyEventHandler((ev) => {
     if (ev.type !== "keydown") return true;

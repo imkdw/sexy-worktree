@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type UIEvent } from "react";
 import { FileDiff, FileText, RefreshCw, Save } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { MultiFileDiff, Virtualizer, type MultiFileDiffProps } from "@pierre/diffs/react";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Icon } from "../icons/Icon";
 import { api } from "../ipc/api";
 import { cn } from "../lib/cn";
@@ -56,6 +58,104 @@ const HIGHLIGHT_CLASS = {
   type: "text-text-secondary",
 } satisfies Record<HighlightTokenKind, string>;
 
+function omitMarkdownNode<T extends { node?: unknown }>(props: T): Omit<T, "node"> {
+  const { node, ...rest } = props;
+  void node;
+  return rest;
+}
+
+const markdownComponents = {
+  h1: (props) => (
+    <h1
+      className="border-border-subtle text-text-primary mb-4 border-b pb-2 text-xl font-semibold"
+      {...omitMarkdownNode(props)}
+    />
+  ),
+  h2: (props) => (
+    <h2
+      className="border-border-subtle text-text-primary mt-6 mb-3 border-b pb-2 text-lg font-semibold"
+      {...omitMarkdownNode(props)}
+    />
+  ),
+  h3: (props) => (
+    <h3
+      className="text-text-primary mt-4 mb-2 text-base font-semibold"
+      {...omitMarkdownNode(props)}
+    />
+  ),
+  h4: (props) => (
+    <h4
+      className="text-text-primary mt-4 mb-2 text-sm font-semibold"
+      {...omitMarkdownNode(props)}
+    />
+  ),
+  p: (props) => (
+    <p className="text-text-secondary my-3 text-sm leading-6" {...omitMarkdownNode(props)} />
+  ),
+  a: (props) => (
+    <a className="text-accent underline underline-offset-4" {...omitMarkdownNode(props)} />
+  ),
+  ul: (props) => (
+    <ul
+      className="text-text-secondary my-3 list-disc space-y-1 pl-6 text-sm"
+      {...omitMarkdownNode(props)}
+    />
+  ),
+  ol: (props) => (
+    <ol
+      className="text-text-secondary my-3 list-decimal space-y-1 pl-6 text-sm"
+      {...omitMarkdownNode(props)}
+    />
+  ),
+  li: (props) => <li className="pl-1" {...omitMarkdownNode(props)} />,
+  blockquote: (props) => (
+    <blockquote
+      className="border-border-strong text-text-muted my-3 border-l px-3 text-sm"
+      {...omitMarkdownNode(props)}
+    />
+  ),
+  hr: (props) => (
+    <hr className="border-border-subtle my-4 border-0 border-t" {...omitMarkdownNode(props)} />
+  ),
+  code: (props) => {
+    const { className, ...rest } = omitMarkdownNode(props);
+    return (
+      <code
+        className={cn("bg-surface text-text-primary rounded-sm px-1 text-sm", className)}
+        {...rest}
+      />
+    );
+  },
+  pre: (props) => (
+    <pre
+      className="scrollbar-terminal bg-surface border-border-subtle my-3 overflow-auto rounded-md border p-3 text-sm"
+      {...omitMarkdownNode(props)}
+    />
+  ),
+  table: (props) => (
+    <div className="scrollbar-hidden my-3 overflow-auto">
+      <table
+        className="border-border-subtle w-full border-collapse text-sm"
+        {...omitMarkdownNode(props)}
+      />
+    </div>
+  ),
+  th: (props) => (
+    <th
+      className="border-border-subtle bg-surface text-text-primary border px-3 py-2 text-left font-medium"
+      {...omitMarkdownNode(props)}
+    />
+  ),
+  td: (props) => (
+    <td
+      className="border-border-subtle text-text-secondary border px-3 py-2"
+      {...omitMarkdownNode(props)}
+    />
+  ),
+} satisfies Components;
+
+const markdownPlugins = [remarkGfm];
+
 export function FocusWorkbench(): React.JSX.Element {
   const { activeWorktreePath, selected } = useFocusWorkbench();
 
@@ -67,6 +167,8 @@ export function FocusWorkbench(): React.JSX.Element {
         <EmptyWorkbench title="No file selected" />
       ) : selected.view === "diff" ? (
         <DiffView worktreePath={activeWorktreePath} relativePath={selected.relativePath} />
+      ) : selected.view === "markdown" ? (
+        <MarkdownView worktreePath={activeWorktreePath} relativePath={selected.relativePath} />
       ) : (
         <EditorView worktreePath={activeWorktreePath} relativePath={selected.relativePath} />
       )}
@@ -103,6 +205,91 @@ function WorkbenchHeader({
       {meta && <span className="text-text-muted shrink-0 text-xs">{meta}</span>}
       {children}
     </header>
+  );
+}
+
+function MarkdownView({
+  worktreePath,
+  relativePath,
+}: {
+  worktreePath: string;
+  relativePath: string;
+}): React.JSX.Element {
+  const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { selectFile } = useFocusWorkbench();
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    setError(null);
+    setContent("");
+    void api.worktree.readFile({ worktreePath, relativePath }).then((result) => {
+      if (!alive) return;
+      setLoading(false);
+      if (!result.ok) {
+        setError(describeFileError(result.error));
+        return;
+      }
+      setContent(result.value.content);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [worktreePath, relativePath]);
+
+  return (
+    <>
+      <WorkbenchHeader icon={FileText} title={relativePath} meta={loading ? "loading" : "preview"}>
+        <Tooltip label="Reload preview">
+          <button
+            aria-label="Reload markdown preview"
+            className="text-text-muted hover:bg-elevated hover:text-text-primary inline-flex h-6 w-6 items-center justify-center rounded-sm transition-colors duration-150"
+            disabled={loading}
+            onClick={() => {
+              setLoading(true);
+              setError(null);
+              void api.worktree.readFile({ worktreePath, relativePath }).then((result) => {
+                setLoading(false);
+                if (!result.ok) {
+                  setError(describeFileError(result.error));
+                  return;
+                }
+                setContent(result.value.content);
+              });
+            }}
+          >
+            <Icon icon={RefreshCw} size={14} className={loading ? "animate-spin" : ""} />
+          </button>
+        </Tooltip>
+        <Tooltip label="Open editor">
+          <button
+            aria-label="Open file editor"
+            className="text-text-muted hover:bg-elevated hover:text-text-primary inline-flex h-6 w-6 items-center justify-center rounded-sm transition-colors duration-150"
+            onClick={() => selectFile(relativePath)}
+          >
+            <Icon icon={FileText} size={14} />
+          </button>
+        </Tooltip>
+      </WorkbenchHeader>
+      {error && (
+        <div className="text-destructive border-border-subtle border-b px-3 py-2 text-xs">
+          {error}
+        </div>
+      )}
+      <div className="scrollbar-hidden bg-terminal-bg min-h-0 flex-1 overflow-auto px-4 py-3">
+        {loading ? (
+          <div className="text-text-muted flex min-h-0 flex-1 items-center justify-center text-sm">
+            Loading markdown...
+          </div>
+        ) : (
+          <ReactMarkdown remarkPlugins={markdownPlugins} components={markdownComponents}>
+            {content}
+          </ReactMarkdown>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -375,10 +562,7 @@ function DiffView({
           Loading diff...
         </div>
       ) : hasRenderedDiff ? (
-        <Virtualizer
-          className="scrollbar-hidden min-h-0 flex-1 overflow-auto"
-          contentClassName="p-3"
-        >
+        <Virtualizer className="scrollbar-hidden min-h-0 flex-1 overflow-auto">
           <MultiFileDiff
             oldFile={oldFile}
             newFile={newFile}

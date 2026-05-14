@@ -13,8 +13,11 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 let activeRepoId: number | null = 1;
 let activeId: string | null = "/repo";
 let openPaths = new Set<string>(["/repo"]);
+let terminalPanePercent = 50;
+let isResizingFocusPanes = false;
 const setActive = vi.fn();
 const openOrFocus = vi.fn();
+const startFocusPaneResize = vi.fn();
 
 const worktrees: Worktree[] = [
   { path: "/repo", branch: "main", head: "abc", isMain: true },
@@ -39,6 +42,13 @@ async function mountFocus(): Promise<{ container: HTMLElement; unmount: () => vo
       getOpenCards: vi.fn(),
       openOrFocus,
       closeCard: vi.fn(),
+    }),
+  }));
+  vi.doMock("@renderer/state/focusWorkbench", () => ({
+    useFocusWorkbench: () => ({
+      terminalPanePercent,
+      isResizingFocusPanes,
+      startFocusPaneResize,
     }),
   }));
   vi.doMock("@renderer/card/Card", () => ({
@@ -74,8 +84,11 @@ describe("Focus", () => {
     activeRepoId = 1;
     activeId = "/repo";
     openPaths = new Set(["/repo"]);
+    terminalPanePercent = 50;
+    isResizingFocusPanes = false;
     setActive.mockClear();
     openOrFocus.mockClear();
+    startFocusPaneResize.mockClear();
     cleanup = null;
   });
 
@@ -95,6 +108,7 @@ describe("Focus", () => {
       (section) => section.textContent
     );
     expect(panes).toEqual(["main", "focus workbench"]);
+    expect(mounted.container.querySelector('[aria-label="Resize focus panes"]')).toBeTruthy();
     expect(mounted.container.textContent).toContain("main");
     expect(mounted.container.textContent).toContain("focus workbench");
     expect(mounted.container.textContent).not.toContain("No terminal selected");
@@ -125,5 +139,30 @@ describe("Focus", () => {
     expect(mounted.container.textContent).toContain("No worktree selected.");
     expect(mounted.container.textContent).not.toContain("main");
     expect(mounted.container.textContent).not.toContain("feature/a");
+  });
+
+  it("sizes the focus panes from focus workbench state and starts split dragging", async () => {
+    terminalPanePercent = 62;
+    const mounted = await mountFocus();
+    cleanup = mounted.unmount;
+
+    const terminalPane = mounted.container.querySelector<HTMLElement>(
+      '[data-focus-pane="terminal"]'
+    );
+    const workbenchPane = mounted.container.querySelector<HTMLElement>(
+      '[data-focus-pane="workbench"]'
+    );
+    const separator = mounted.container.querySelector<HTMLElement>(
+      '[aria-label="Resize focus panes"]'
+    );
+
+    expect(terminalPane?.style.flexBasis).toBe("62%");
+    expect(workbenchPane?.style.flexBasis).toBe("38%");
+    expect(separator?.getAttribute("aria-valuenow")).toBe("62");
+
+    await act(async () => {
+      separator?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, clientX: 400 }));
+    });
+    expect(startFocusPaneResize).toHaveBeenCalledTimes(1);
   });
 });
