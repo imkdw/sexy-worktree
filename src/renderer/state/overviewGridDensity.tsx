@@ -124,7 +124,7 @@ export function OverviewGridDensityProvider({
   const scheduleSave = useCallback(
     (repoId: number, next: OverviewGridDensity, saveRevision: number): Promise<void> => {
       const saveTask = async (): Promise<void> => {
-        let message: string | null = null;
+        let message: string;
         try {
           const result = await api.overviewGridDensity.set({ repoId, density: next });
           if (result.ok) {

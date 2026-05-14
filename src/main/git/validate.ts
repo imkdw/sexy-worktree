@@ -47,7 +47,7 @@ export async function validateRepo(
   }
 
   // 5. --porcelain으로 첫 번째 워크트리 항목(메인 저장소)을 가져온다. git은 항상 실제 경로를 반환한다.
-  let realMainRepoPath = "";
+  let realMainRepoPath: string;
   try {
     const { stdout } = await pexec("git worktree list --porcelain", { cwd: realUserPath });
     const firstWorktreeLine = stdout.split("\n").find((l) => l.startsWith("worktree "));
