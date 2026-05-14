@@ -318,7 +318,7 @@ async function mountRailWithMocks(): Promise<{ unmount: () => void }> {
 async function mountFocusRailWithMocks({
   changes = [
     {
-      relativePath: "src/App.tsx",
+      relativePath: "libs/servers/src/common/service/common-service.module.ts",
       originalPath: null,
       status: "modified",
       indexStatus: " ",
@@ -475,21 +475,31 @@ describe("Rail", () => {
     expect(document.body.textContent).toContain("Changed Code");
     expect(document.body.textContent).toContain("Changes");
     expect(document.body.textContent).toContain("1 changed");
-    expect(document.querySelector('[data-focus-tree-key="change-dir:src"]')).toBeTruthy();
-    expect(document.querySelector('[data-focus-tree-key="change:src/App.tsx"]')).toBeNull();
+    expect(
+      document.querySelector('[data-focus-tree-key="change-dir:libs"]')
+    ).not.toBeTruthy();
+    expect(document.querySelector('[data-focus-tree-key="change-dir:src"]')).not.toBeTruthy();
+    expect(
+      document.querySelector(
+        '[data-focus-tree-key="change:libs/servers/src/common/service/common-service.module.ts"]'
+      )
+    ).toBeTruthy();
+    expect(document.body.textContent).toContain("common-service.module.ts");
+    expect(document.body.textContent).not.toContain(
+      "libs/servers/src/common/service/common-service.module.ts"
+    );
     expect(document.querySelector('[data-focus-tree-key="dir:src"]')).toBeNull();
     expect(document.body.textContent).not.toContain("Files");
     expect(document.body.textContent).not.toContain("feature/visible-rail-handle");
 
     await act(async () => {
-      focusTreeNodeContent("change-dir:src")?.click();
+      focusTreeNodeContent(
+        "change:libs/servers/src/common/service/common-service.module.ts"
+      )?.click();
     });
-    expect(document.querySelector('[data-focus-tree-key="change:src/App.tsx"]')).toBeTruthy();
-
-    await act(async () => {
-      focusTreeNodeContent("change:src/App.tsx")?.click();
-    });
-    expect(selectDiffMock).toHaveBeenCalledWith("src/App.tsx");
+    expect(selectDiffMock).toHaveBeenCalledWith(
+      "libs/servers/src/common/service/common-service.module.ts"
+    );
   });
 
   it("virtualizes large focus-mode change lists", async () => {
@@ -504,13 +514,7 @@ describe("Rail", () => {
     cleanup = mounted.unmount;
 
     expect(document.body.textContent).toContain("Changes");
-    expect(document.querySelector('[data-focus-tree-key="change-dir:src"]')).toBeTruthy();
-    expect(document.body.textContent).not.toContain("file-0.ts");
-
-    await act(async () => {
-      focusTreeNodeContent("change-dir:src")?.click();
-    });
-
+    expect(document.querySelector('[data-focus-tree-key="change-dir:src"]')).not.toBeTruthy();
     expect(document.body.textContent).toContain("file-0.ts");
     expect(document.body.textContent).not.toContain("file-199.ts");
     expect(

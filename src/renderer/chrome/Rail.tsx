@@ -6,14 +6,11 @@ import {
   ChevronLeft,
   ChevronRight,
   FileDiff,
-  Folder,
-  FolderOpen,
   GitBranch,
   RefreshCw,
   Square,
   X,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import Tree, { type TreeNodeProps, type TreeProps } from "rc-tree";
 import { Icon } from "../icons/Icon";
 import { cn } from "../lib/cn";
@@ -280,7 +277,7 @@ const FOCUS_TREE_ROW_HEIGHT = 32;
 const FOCUS_TREE_DEFAULT_HEIGHT = 640;
 const CHANGES_SECTION_KEY = "section:changes";
 
-type FocusTreeNodeKind = "section" | "change-directory" | "change";
+type FocusTreeNodeKind = "section" | "change";
 
 type FocusTreeNode = {
   key: string;
@@ -380,7 +377,7 @@ function FocusFileTree({
   collapsed: boolean;
   changes: WorktreeFileChange[];
   error: string | null;
-  selected: { relativePath: string; view: "editor" | "diff" } | null;
+  selected: { relativePath: string; view: "diff" | "editor" | "markdown" } | null;
   selectDiff: (relativePath: string) => void;
 }): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -389,10 +386,6 @@ function FocusFileTree({
   const treeModel = useMemo(() => buildFocusTreeModel(changes), [changes]);
   const selectedKey = selected ? selectedTreeKey(selected) : null;
   const selectedKeys = selectedKey && treeModel.keySet.has(selectedKey) ? [selectedKey] : [];
-  const expandedKeySet = useMemo(
-    () => new Set(expandedKeys.map((key) => String(key))),
-    [expandedKeys]
-  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -461,7 +454,6 @@ function FocusFileTree({
           titleRender={(node) => (
             <FocusTreeTitle
               collapsed={collapsed}
-              expanded={expandedKeySet.has(node.key)}
               node={node}
             />
           )}
@@ -480,21 +472,18 @@ function FocusFileTree({
 
 function FocusTreeTitle({
   collapsed,
-  expanded,
   node,
 }: {
   collapsed: boolean;
-  expanded: boolean;
   node: FocusTreeNode;
 }): React.JSX.Element {
-  const TreeIcon = focusTreeIcon(node, expanded);
   return (
     <span
       data-focus-tree-key={node.key}
       data-focus-tree-row
       data-focus-tree-section={node.kind === "section" ? "true" : undefined}
     >
-      <Icon icon={TreeIcon} size={14} className="shrink-0" />
+      <Icon icon={FileDiff} size={14} className="shrink-0" />
       {!collapsed && (
         <>
           <span data-focus-tree-label>{node.label}</span>
@@ -517,13 +506,10 @@ function renderFocusTreeSwitcherIcon(props: TreeNodeProps): React.ReactNode {
   return <Icon icon={props.expanded ? ChevronDown : ChevronRight} size={14} />;
 }
 
-function focusTreeIcon(node: FocusTreeNode, expanded: boolean): LucideIcon {
-  if (node.kind === "section") return FileDiff;
-  if (node.kind === "change") return FileDiff;
-  return expanded ? FolderOpen : Folder;
-}
-
-function selectedTreeKey(selected: { relativePath: string; view: "editor" | "diff" }): string {
+function selectedTreeKey(selected: {
+  relativePath: string;
+  view: "diff" | "editor" | "markdown";
+}): string {
   return changeFileKey(selected.relativePath);
 }
 
@@ -552,51 +538,21 @@ function buildFocusTreeModel(changes: WorktreeFileChange[]): FocusTreeModel {
 
 function buildChangeTree(changes: WorktreeFileChange[]): FocusTreeNode[] {
   const rootChildren: FocusTreeNode[] = [];
-  const directories = new Map<string, FocusTreeNode>();
   const files = new Set<string>();
-
-  function ensureDirectory(relativePath: string): FocusTreeNode {
-    const existing = directories.get(relativePath);
-    if (existing) return existing;
-
-    const parentPath = parentPathOf(relativePath);
-    const parentChildren = parentPath ? ensureDirectory(parentPath).children : rootChildren;
-    const node: FocusTreeNode = {
-      key: changeDirectoryKey(relativePath),
-      title: relativePath,
-      label: basenameOf(relativePath),
-      kind: "change-directory",
-      relativePath,
-      children: [],
-      selectable: false,
-      isLeaf: false,
-    };
-
-    directories.set(relativePath, node);
-    parentChildren?.push(node);
-    return node;
-  }
 
   for (const change of changes) {
     const relativePath = change.relativePath.replace(/\/+$/, "");
     if (!relativePath) continue;
 
-    if (change.relativePath.endsWith("/")) {
-      ensureDirectory(relativePath).status = change.status;
-      continue;
-    }
+    if (files.has(relativePath)) continue;
+    files.add(relativePath);
 
-    if (files.has(change.relativePath)) continue;
-    files.add(change.relativePath);
-
-    const parentPath = parentPathOf(change.relativePath);
-    const parentChildren = parentPath ? ensureDirectory(parentPath).children : rootChildren;
-    parentChildren?.push({
-      key: changeFileKey(change.relativePath),
-      title: change.relativePath,
-      label: basenameOf(change.relativePath),
+    rootChildren.push({
+      key: changeFileKey(relativePath),
+      title: relativePath,
+      label: basenameOf(relativePath),
       kind: "change",
-      relativePath: change.relativePath,
+      relativePath,
       status: change.status,
       isLeaf: true,
     });
@@ -634,7 +590,7 @@ function indexTree(
 }
 
 function isBranchNode(node: FocusTreeNode): boolean {
-  return node.kind === "section" || node.kind === "change-directory";
+  return node.kind === "section";
 }
 
 function sameKeySet(left: Key[], right: Key[]): boolean {
@@ -643,23 +599,13 @@ function sameKeySet(left: Key[], right: Key[]): boolean {
   return right.every((key) => leftKeys.has(String(key)));
 }
 
-function parentPathOf(relativePath: string): string {
-  const index = relativePath.lastIndexOf("/");
-  return index > 0 ? relativePath.slice(0, index) : "";
+function changeFileKey(relativePath: string): string {
+  return `change:${relativePath}`;
 }
 
 function basenameOf(relativePath: string): string {
-  const path = relativePath.replace(/\/+$/, "");
-  const index = path.lastIndexOf("/");
-  return index >= 0 ? path.slice(index + 1) : path;
-}
-
-function changeDirectoryKey(relativePath: string): string {
-  return `change-dir:${relativePath}`;
-}
-
-function changeFileKey(relativePath: string): string {
-  return `change:${relativePath}`;
+  const index = relativePath.lastIndexOf("/");
+  return index >= 0 ? relativePath.slice(index + 1) : relativePath;
 }
 
 function RailResizeHandle({
