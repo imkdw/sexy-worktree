@@ -30,6 +30,25 @@ describe("terminal markdown path links", () => {
     ).toBe("docs/superpowers/plans/2026-05-14-ci-plan.md");
   });
 
+  it("keeps extended markdown extensions intact", () => {
+    expect(
+      findMarkdownPathLinks("Preview docs/guide.mdx and docs/archive.markdown", "/repo")
+    ).toEqual([
+      {
+        text: "docs/guide.mdx",
+        relativePath: "docs/guide.mdx",
+        startIndex: 8,
+        endIndex: 22,
+      },
+      {
+        text: "docs/archive.markdown",
+        relativePath: "docs/archive.markdown",
+        startIndex: 27,
+        endIndex: 48,
+      },
+    ]);
+  });
+
   it("ignores external absolute paths and URL-like paths", () => {
     expect(resolveMarkdownRelativePath("/tmp/plan.md", "/repo")).toBeNull();
     expect(resolveMarkdownRelativePath("https://example.com/plan.md", "/repo")).toBeNull();

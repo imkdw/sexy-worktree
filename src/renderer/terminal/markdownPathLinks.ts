@@ -20,8 +20,9 @@ type TerminalLine = {
   cellEndByIndex: number[];
 };
 
+const MARKDOWN_EXTENSION_PATTERN = /\.(?:markdown|mdx|md)/i;
 const MARKDOWN_PATH_PATTERN =
-  /(?:file:\/\/)?(?:~|\.{1,2}|\/|[A-Za-z0-9_.-])(?:[^\s`"'<>[\]{}|]*?\.md)(?::\d+(?::\d+)?)?/gi;
+  /(?:file:\/\/)?(?:~|\.{1,2}|\/|[A-Za-z0-9_.-])(?:[^\s`"'<>[\]{}|]*?\.(?:markdown|mdx|md))(?::\d+(?::\d+)?)?/gi;
 
 export function installMarkdownPathLinkProvider(term: XTerm, worktreePath: string): void {
   term.registerLinkProvider({
@@ -82,10 +83,10 @@ export function findMarkdownPathLinks(lineText: string, worktreePath: string): M
     const matchIndex = match.index;
     if (matchIndex == null) continue;
 
-    const markdownEndIndex = raw.toLowerCase().indexOf(".md");
-    if (markdownEndIndex < 0) continue;
+    const markdownExtension = raw.match(MARKDOWN_EXTENSION_PATTERN);
+    if (!markdownExtension || markdownExtension.index == null) continue;
 
-    const text = raw.slice(0, markdownEndIndex + ".md".length);
+    const text = raw.slice(0, markdownExtension.index + markdownExtension[0].length);
     const relativePath = resolveMarkdownRelativePath(raw, worktreePath);
     if (!relativePath) continue;
 
@@ -113,7 +114,7 @@ export function resolveMarkdownRelativePath(rawPath: string, worktreePath: strin
     // Keep the original candidate when percent decoding fails.
   }
 
-  if (!candidate.toLowerCase().endsWith(".md")) return null;
+  if (!/\.(?:markdown|mdx|md)$/i.test(candidate)) return null;
   if (/^[a-z][a-z0-9+.-]*:/i.test(candidate)) return null;
 
   const normalizedWorktree = worktreePath.replace(/\/+$/, "");
