@@ -17,7 +17,11 @@ export function Grid(): React.JSX.Element {
   const { jobs } = useNewWorktreeJobs();
   const { density } = useOverviewGridDensity();
   const liveJobs = jobs.filter(
-    (j) => j.status === "queued" || j.status === "running" || j.status === "failed"
+    (j) =>
+      j.status === "queued" ||
+      j.status === "running" ||
+      j.status === "cleaning" ||
+      j.status === "failed"
   );
   if (!activeRepoId)
     return (

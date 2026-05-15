@@ -7,6 +7,7 @@ import {
   stepInstall,
   stepInitCommands,
 } from "./steps";
+import { cleanupGeneratedWorktree } from "./cleanup";
 
 export type JobInput = {
   jobId: string;
@@ -23,6 +24,10 @@ export type JobInput = {
 type StepResult = { ok: true } | { ok: false; error: { stderr: string } };
 
 export type StepRunner = (key: StepKey, input: JobInput) => Promise<StepResult>;
+export type CleanupRunner = (
+  input: JobInput,
+  options: { removeBranch: boolean }
+) => Promise<StepResult>;
 
 export type EventListener = (e: {
   kind: "created" | "updated" | "completed";
@@ -31,13 +36,19 @@ export type EventListener = (e: {
 
 export class Bootstrapper {
   private runningJobs = new Set<string>();
+  private cleaningJobs = new Set<string>();
   private pendingRetries = new Set<string>();
   private snapshots = new Map<string, JobSnapshot>();
   private listeners = new Set<EventListener>();
   private waiters = new Map<string, Array<() => void>>();
   private inputs = new Map<string, JobInput>();
+  private startIndexes = new Map<string, number>();
 
-  constructor(private readonly stepRunner: StepRunner = defaultStepRunner) {}
+  constructor(
+    private readonly stepRunner: StepRunner = defaultStepRunner,
+    private readonly cleanupRunner: CleanupRunner = defaultCleanupRunner,
+    private readonly maxRunningJobsPerRepo = 1
+  ) {}
 
   onEvent(fn: EventListener): () => void {
     this.listeners.add(fn);
@@ -59,7 +70,13 @@ export class Bootstrapper {
   }): { existingPath: string } | null {
     for (const snap of this.snapshots.values()) {
       if (snap.repoId !== args.repoId) continue;
-      if (snap.status !== "running" && snap.status !== "failed") continue;
+      if (
+        snap.status !== "queued" &&
+        snap.status !== "running" &&
+        snap.status !== "failed" &&
+        snap.status !== "cleaning"
+      )
+        continue;
       if (snap.branch === args.branch || snap.worktreePath === args.worktreePath) {
         return { existingPath: snap.worktreePath };
       }
@@ -81,13 +98,14 @@ export class Bootstrapper {
 
   enqueue(input: JobInput): string {
     this.inputs.set(input.jobId, input);
+    this.startIndexes.set(input.jobId, 0);
 
     const initial: JobSnapshot = {
       id: input.jobId,
       repoId: input.repoId,
       branch: input.branch,
       worktreePath: input.worktreePath,
-      status: "running",
+      status: "queued",
       steps: ALL_STEPS.map((k) => ({ key: k, status: "pending" as StepStatus })),
       failedStep: null,
       failureMessage: null,
@@ -95,7 +113,7 @@ export class Bootstrapper {
     };
     this.snapshots.set(input.jobId, initial);
     this.emit("created", initial);
-    void this.runJob(input.jobId, input, 0);
+    this.scheduleRepo(input.repoId);
 
     return input.jobId;
   }
@@ -111,6 +129,7 @@ export class Bootstrapper {
       return;
     }
     const idx = ALL_STEPS.indexOf(failed);
+    this.startIndexes.set(jobId, idx);
     this.update(jobId, (s) => ({
       ...s,
       status: "queued",
@@ -120,15 +139,20 @@ export class Bootstrapper {
         i < idx ? st : { key: st.key, status: "pending" as StepStatus }
       ),
     }));
-    void this.runJob(jobId, input, idx);
+    this.scheduleRepo(input.repoId);
   }
 
   cancel(jobId: string): void {
     const snap = this.snapshots.get(jobId);
-    if (!snap) return;
+    const input = this.inputs.get(jobId);
+    if (!snap || !input || this.cleaningJobs.has(jobId)) return;
     if (snap.status !== "failed" && snap.status !== "queued") return;
-    this.update(jobId, (s) => ({ ...s, status: "cancelled" }));
-    this.complete(jobId);
+
+    this.pendingRetries.delete(jobId);
+    this.startIndexes.delete(jobId);
+    this.update(jobId, (s) => ({ ...s, status: "cleaning", failureMessage: null }));
+    this.cleaningJobs.add(jobId);
+    void this.cleanupAfterCancel(jobId, input);
   }
 
   private markStep(jobId: string, key: StepKey, status: StepStatus, message?: string): void {
@@ -169,10 +193,11 @@ export class Bootstrapper {
             failedStep: key,
             failureMessage,
           }));
-          this.runningJobs.delete(jobId);
+          this.finishRunningJob(jobId, input.repoId);
           ownsRunningGuard = false;
           this.complete(jobId);
           this.drainPendingRetry(jobId);
+          this.scheduleRepo(input.repoId);
           return;
         }
         if (!r.ok) {
@@ -183,29 +208,91 @@ export class Bootstrapper {
             failedStep: key,
             failureMessage: r.error.stderr,
           }));
-          this.runningJobs.delete(jobId);
+          this.finishRunningJob(jobId, input.repoId);
           ownsRunningGuard = false;
           this.complete(jobId);
           this.drainPendingRetry(jobId);
+          this.scheduleRepo(input.repoId);
           return;
         }
         this.markStep(jobId, key, "done");
       }
 
       this.update(jobId, (s) => ({ ...s, status: "done" }));
-      this.runningJobs.delete(jobId);
+      this.finishRunningJob(jobId, input.repoId);
       ownsRunningGuard = false;
       this.complete(jobId);
     } finally {
       if (ownsRunningGuard) {
-        this.runningJobs.delete(jobId);
+        this.finishRunningJob(jobId, input.repoId);
       }
     }
+  }
+
+  private async cleanupAfterCancel(jobId: string, input: JobInput): Promise<void> {
+    const removeBranch = this.isStepDone(jobId, "worktree-add");
+    const result = await this.cleanupRunner(input, { removeBranch });
+    this.cleaningJobs.delete(jobId);
+
+    if (!result.ok) {
+      const failureMessage = `Cleanup failed: ${result.error.stderr}`;
+      this.update(jobId, (s) => ({
+        ...s,
+        status: "failed",
+        failedStep: s.failedStep ?? "worktree-add",
+        failureMessage,
+      }));
+      this.complete(jobId);
+      this.scheduleRepo(input.repoId);
+      return;
+    }
+
+    this.update(jobId, (s) => ({ ...s, status: "cancelled", failureMessage: null }));
+    this.complete(jobId);
+    this.scheduleRepo(input.repoId);
   }
 
   private drainPendingRetry(jobId: string): void {
     if (!this.pendingRetries.delete(jobId)) return;
     this.retry(jobId);
+  }
+
+  private scheduleRepo(repoId: number): void {
+    while (this.runningCountForRepo(repoId) < this.maxRunningJobsPerRepo) {
+      const next = [...this.snapshots.values()].find(
+        (snapshot) => snapshot.repoId === repoId && snapshot.status === "queued"
+      );
+      if (!next) return;
+
+      const input = this.inputs.get(next.id);
+      if (!input) {
+        this.update(next.id, (s) => ({ ...s, status: "cancelled" }));
+        this.complete(next.id);
+        continue;
+      }
+
+      const startIndex = this.startIndexes.get(next.id) ?? 0;
+      void this.runJob(next.id, input, startIndex);
+    }
+  }
+
+  private runningCountForRepo(repoId: number): number {
+    let count = 0;
+    for (const jobId of this.runningJobs) {
+      if (this.snapshots.get(jobId)?.repoId === repoId) count += 1;
+    }
+    return count;
+  }
+
+  private finishRunningJob(jobId: string, repoId: number): void {
+    this.runningJobs.delete(jobId);
+    if (this.runningCountForRepo(repoId) < this.maxRunningJobsPerRepo) {
+      queueMicrotask(() => this.scheduleRepo(repoId));
+    }
+  }
+
+  private isStepDone(jobId: string, key: StepKey): boolean {
+    return this.snapshots.get(jobId)?.steps.find((step) => step.key === key)?.status === "done";
   }
 
   private update(jobId: string, fn: (s: JobSnapshot) => JobSnapshot): void {
@@ -261,4 +348,17 @@ async function defaultStepRunner(key: StepKey, input: JobInput): Promise<StepRes
 
   const r = await map[key]();
   return r.ok ? { ok: true } : { ok: false, error: { stderr: r.error.stderr } };
+}
+
+async function defaultCleanupRunner(
+  input: JobInput,
+  options: { removeBranch: boolean }
+): Promise<StepResult> {
+  const result = await cleanupGeneratedWorktree({
+    repoPath: input.mainRepoPath,
+    worktreePath: input.worktreePath,
+    branchName: input.branch,
+    removeBranch: options.removeBranch,
+  });
+  return result.ok ? { ok: true } : { ok: false, error: { stderr: result.error.stderr } };
 }

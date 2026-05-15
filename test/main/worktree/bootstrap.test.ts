@@ -98,7 +98,72 @@ describe("Bootstrapper", () => {
     ]);
   });
 
-  it("runs multiple jobs in parallel", async () => {
+  it("runs one provisioning job per repository at a time", async () => {
+    let active = 0;
+    let maxActive = 0;
+    let firstInstallStarted!: () => void;
+    let releaseInstall!: () => void;
+    const installGate = new Promise<void>((resolve) => {
+      releaseInstall = resolve;
+    });
+    const firstInstalling = new Promise<void>((resolve) => {
+      firstInstallStarted = resolve;
+    });
+
+    const b = new Bootstrapper(async (key) => {
+      if (key !== "install") return { ok: true };
+
+      active += 1;
+      maxActive = Math.max(maxActive, active);
+      firstInstallStarted();
+      await installGate;
+      active -= 1;
+      return { ok: true };
+    });
+
+    const jobA = b.enqueue({
+      jobId: "parallel-a",
+      repoId: 1,
+      mainRepoPath: mainRepo,
+      branch: "feat-parallel-a",
+      baseBranch: "main",
+      worktreePath: join(tmp, "wt-parallel-a"),
+      filesToCopy: [],
+      installCommand: "true",
+      initCommands: [],
+    });
+    const jobB = b.enqueue({
+      jobId: "parallel-b",
+      repoId: 1,
+      mainRepoPath: mainRepo,
+      branch: "feat-parallel-b",
+      baseBranch: "main",
+      worktreePath: join(tmp, "wt-parallel-b"),
+      filesToCopy: [],
+      installCommand: "true",
+      initCommands: [],
+    });
+
+    await Promise.race([
+      firstInstalling,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Timed out waiting for the first install step")), 500)
+      ),
+    ]);
+
+    expect(b.snapshot(jobA)!.status).toBe("running");
+    expect(b.snapshot(jobB)!.status).toBe("queued");
+    expect(maxActive).toBe(1);
+
+    releaseInstall();
+    await Promise.all([b.waitFor(jobA), b.waitFor(jobB)]);
+
+    expect(b.snapshot(jobA)!.status).toBe("done");
+    expect(b.snapshot(jobB)!.status).toBe("done");
+    expect(maxActive).toBe(1);
+  });
+
+  it("allows different repositories to provision in parallel", async () => {
     let active = 0;
     let maxActive = 0;
     let installEntries = 0;
@@ -126,23 +191,23 @@ describe("Bootstrapper", () => {
     });
 
     const jobA = b.enqueue({
-      jobId: "parallel-a",
+      jobId: "parallel-repo-a",
       repoId: 1,
       mainRepoPath: mainRepo,
-      branch: "feat-parallel-a",
+      branch: "feat-parallel-repo-a",
       baseBranch: "main",
-      worktreePath: join(tmp, "wt-parallel-a"),
+      worktreePath: join(tmp, "wt-parallel-repo-a"),
       filesToCopy: [],
       installCommand: "true",
       initCommands: [],
     });
     const jobB = b.enqueue({
-      jobId: "parallel-b",
-      repoId: 1,
+      jobId: "parallel-repo-b",
+      repoId: 2,
       mainRepoPath: mainRepo,
-      branch: "feat-parallel-b",
+      branch: "feat-parallel-repo-b",
       baseBranch: "main",
-      worktreePath: join(tmp, "wt-parallel-b"),
+      worktreePath: join(tmp, "wt-parallel-repo-b"),
       filesToCopy: [],
       installCommand: "true",
       initCommands: [],
@@ -331,6 +396,55 @@ describe("Bootstrapper", () => {
     ).toBeNull();
   });
 
+  it("reports active conflicts for queued jobs", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const b = new Bootstrapper(async (key) => {
+      if (key === "install") await gate;
+      return { ok: true };
+    });
+
+    const runningJob = b.enqueue({
+      jobId: "queued-conflict-running",
+      repoId: 1,
+      mainRepoPath: mainRepo,
+      branch: "feat-queued-conflict-running",
+      baseBranch: "main",
+      worktreePath: join(tmp, "wt-queued-conflict-running"),
+      filesToCopy: [],
+      installCommand: "true",
+      initCommands: [],
+    });
+    const queuedJob = b.enqueue({
+      jobId: "queued-conflict",
+      repoId: 1,
+      mainRepoPath: mainRepo,
+      branch: "feat-queued-conflict",
+      baseBranch: "main",
+      worktreePath: join(tmp, "wt-queued-conflict"),
+      filesToCopy: [],
+      installCommand: "true",
+      initCommands: [],
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(b.snapshot(queuedJob)!.status).toBe("queued");
+    expect(
+      b.findActiveConflict({
+        repoId: 1,
+        branch: "feat-queued-conflict",
+        worktreePath: join(tmp, "wt-queued-conflict"),
+      })
+    ).toEqual({ existingPath: join(tmp, "wt-queued-conflict") });
+
+    release();
+    await Promise.all([b.waitFor(runningJob), b.waitFor(queuedJob)]);
+  });
+
   it("keeps a failed job as an active conflict until cancelled", async () => {
     const b = new Bootstrapper(async (key) =>
       key === "install" ? { ok: false, error: { stderr: "install failed" } } : { ok: true }
@@ -359,6 +473,7 @@ describe("Bootstrapper", () => {
     ).toEqual({ existingPath: join(tmp, "wt-failed-conflict") });
 
     b.cancel(failedJob);
+    await b.waitFor(failedJob);
 
     expect(
       b.findActiveConflict({
@@ -367,5 +482,76 @@ describe("Bootstrapper", () => {
         worktreePath: join(tmp, "wt-failed-conflict"),
       })
     ).toBeNull();
+    expect(b.snapshot(failedJob)!.status).toBe("cancelled");
+  });
+
+  it("passes removeBranch to cleanup only after worktree add completed", async () => {
+    const cleanupCalls: boolean[] = [];
+    const b = new Bootstrapper(
+      async (key) => {
+        if (key === "worktree-add") {
+          return { ok: false, error: { stderr: "branch exists" } };
+        }
+        return { ok: true };
+      },
+      async (_input, options) => {
+        cleanupCalls.push(options.removeBranch);
+        return { ok: true };
+      }
+    );
+
+    const job = b.enqueue({
+      jobId: "cleanup-before-worktree-add",
+      repoId: 1,
+      mainRepoPath: mainRepo,
+      branch: "feat-cleanup-before-worktree-add",
+      baseBranch: "main",
+      worktreePath: join(tmp, "wt-cleanup-before-worktree-add"),
+      filesToCopy: [],
+      installCommand: "true",
+      initCommands: [],
+    });
+
+    await b.waitFor(job);
+    b.cancel(job);
+    await b.waitFor(job);
+
+    expect(cleanupCalls).toEqual([false]);
+    expect(b.snapshot(job)!.status).toBe("cancelled");
+  });
+
+  it("passes removeBranch to cleanup after worktree add completed", async () => {
+    const cleanupCalls: boolean[] = [];
+    const b = new Bootstrapper(
+      async (key) => {
+        if (key === "install") {
+          return { ok: false, error: { stderr: "install failed" } };
+        }
+        return { ok: true };
+      },
+      async (_input, options) => {
+        cleanupCalls.push(options.removeBranch);
+        return { ok: true };
+      }
+    );
+
+    const job = b.enqueue({
+      jobId: "cleanup-after-worktree-add",
+      repoId: 1,
+      mainRepoPath: mainRepo,
+      branch: "feat-cleanup-after-worktree-add",
+      baseBranch: "main",
+      worktreePath: join(tmp, "wt-cleanup-after-worktree-add"),
+      filesToCopy: [],
+      installCommand: "true",
+      initCommands: [],
+    });
+
+    await b.waitFor(job);
+    b.cancel(job);
+    await b.waitFor(job);
+
+    expect(cleanupCalls).toEqual([true]);
+    expect(b.snapshot(job)!.status).toBe("cancelled");
   });
 });

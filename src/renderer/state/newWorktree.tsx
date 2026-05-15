@@ -43,8 +43,10 @@ export function NewWorktreeProvider({ children }: { children: ReactNode }): Reac
         next[idx] = e.job;
         return next;
       });
-      if (e.kind === "completed" && e.job.status === "done") {
+      if (e.kind === "completed" && (e.job.status === "done" || e.job.status === "cancelled")) {
         void refreshWorktrees();
+      }
+      if (e.kind === "completed" && e.job.status === "done") {
         const activeRepo = reposRef.current.find((r) => r.id === activeRepoId);
         if (activeRepo) {
           window.dispatchEvent(

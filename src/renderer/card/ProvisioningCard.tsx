@@ -32,7 +32,14 @@ function StepIcon({ status }: { status: StepStatus }): React.JSX.Element {
 
 export function ProvisioningCard({ job }: { job: JobSnapshot }): React.JSX.Element {
   const failed = job.status === "failed";
-  const statusLabel = failed ? "FAILED" : job.status === "queued" ? "QUEUED" : "RUNNING";
+  const statusLabel =
+    job.status === "failed"
+      ? "FAILED"
+      : job.status === "queued"
+        ? "QUEUED"
+        : job.status === "cleaning"
+          ? "CLEANING"
+          : "RUNNING";
   const cardClass = cn(
     "bg-surface flex min-h-0 w-full flex-col overflow-hidden rounded-md border-2 border-dashed border-in-progress",
     failed && "border-destructive"

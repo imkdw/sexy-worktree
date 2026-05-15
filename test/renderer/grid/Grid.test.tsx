@@ -13,7 +13,7 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 type LiveJob = {
   id: string;
-  status: "queued" | "running" | "failed" | "completed";
+  status: "queued" | "running" | "cleaning" | "failed" | "completed";
 };
 
 let activeRepoId: number | null = 1;
@@ -154,7 +154,9 @@ describe("Grid", () => {
     cleanup = mounted.unmount;
 
     expect(mounted.container.textContent).toContain("No terminals open");
-    expect(mounted.container.textContent).toContain("Select a worktree in the rail to open a terminal.");
+    expect(mounted.container.textContent).toContain(
+      "Select a worktree in the rail to open a terminal."
+    );
   });
 
   it("still renders live provisioning cards when no terminals are open", async () => {
@@ -164,6 +166,16 @@ describe("Grid", () => {
     cleanup = mounted.unmount;
 
     expect(mounted.container.textContent).toContain("job-1");
+    expect(mounted.container.textContent).not.toContain("No terminals open");
+  });
+
+  it("keeps cleanup provisioning cards visible", async () => {
+    openCards = [];
+    liveJobs = [{ id: "job-cleaning", status: "cleaning" }];
+    const mounted = await mountGrid();
+    cleanup = mounted.unmount;
+
+    expect(mounted.container.textContent).toContain("job-cleaning");
     expect(mounted.container.textContent).not.toContain("No terminals open");
   });
 

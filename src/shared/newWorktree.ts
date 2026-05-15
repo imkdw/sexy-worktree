@@ -19,7 +19,7 @@ export const ALL_STEPS: StepKey[] = [
 
 export type StepStatus = "pending" | "in-progress" | "done" | "failed";
 
-export type JobStatus = "queued" | "running" | "done" | "failed" | "cancelled";
+export type JobStatus = "queued" | "running" | "cleaning" | "done" | "failed" | "cancelled";
 
 export type JobSnapshot = {
   id: JobId;
