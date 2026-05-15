@@ -30,7 +30,13 @@ export class PtyManager {
       cwd: args.cwd,
       cols: args.cols,
       rows: args.rows,
-      env: { ...process.env, ...args.env, TERM: "xterm-256color" } as { [k: string]: string },
+      env: {
+        ...process.env,
+        ...args.env,
+        TERM: "xterm-256color",
+        TERM_PROGRAM: "xterm.js",
+        COLORTERM: "truecolor",
+      } as { [k: string]: string },
     });
     const entry: Entry = {
       proc,
