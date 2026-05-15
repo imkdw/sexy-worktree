@@ -10,7 +10,13 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { stepFetch, stepWorktreeAdd, stepFilesCopy, stepInitCommands } from "@main/worktree/steps";
+import {
+  stepFetch,
+  stepWorktreeAdd,
+  stepFilesCopy,
+  stepClonefileNodeModules,
+  stepInitCommands,
+} from "@main/worktree/steps";
 
 const originalEnv = { ...process.env };
 
@@ -95,6 +101,33 @@ describe("stepFilesCopy", () => {
       files: [".does-not-exist"],
     });
     expect(r.ok).toBe(true);
+  });
+});
+
+describe("stepClonefileNodeModules", () => {
+  it("replaces an existing destination instead of nesting node_modules on retry", async () => {
+    const wtPath = join(tmp, "clonefile-wt");
+    mkdirSync(join(mainRepo, "node_modules", "left-pad"), { recursive: true });
+    mkdirSync(join(wtPath, "node_modules", "stale-package"), { recursive: true });
+    mkdirSync(join(wtPath, "node_modules", "node_modules", "nested-stale"), {
+      recursive: true,
+    });
+    writeFileSync(join(mainRepo, "node_modules", "left-pad", "index.js"), "module.exports = 1;");
+    writeFileSync(join(wtPath, "node_modules", "stale-package", "index.js"), "stale");
+    writeFileSync(
+      join(wtPath, "node_modules", "node_modules", "nested-stale", "index.js"),
+      "stale"
+    );
+
+    const r = await stepClonefileNodeModules({
+      mainRepoPath: mainRepo,
+      worktreePath: wtPath,
+    });
+
+    expect(r.ok).toBe(true);
+    expect(existsSync(join(wtPath, "node_modules", "left-pad", "index.js"))).toBe(true);
+    expect(existsSync(join(wtPath, "node_modules", "stale-package"))).toBe(false);
+    expect(existsSync(join(wtPath, "node_modules", "node_modules"))).toBe(false);
   });
 });
 

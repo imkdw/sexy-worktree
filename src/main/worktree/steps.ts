@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { copyFile, mkdir } from "node:fs/promises";
+import { copyFile, mkdir, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { ok, err, type Result } from "@shared/result";
@@ -9,6 +9,7 @@ export type StepError = { stderr: string; code: number };
 
 const DEFAULT_SHELL = "/bin/zsh";
 const SHELL_PATH_TIMEOUT_MS = 5_000;
+const CLONEFILE_TIMEOUT_MS = 600_000;
 
 let userShellPathCache: { key: string; value: Promise<string | null> } | null = null;
 
@@ -73,8 +74,27 @@ export async function stepClonefileNodeModules(args: {
   const src = join(args.mainRepoPath, "node_modules");
   if (!existsSync(src)) return ok(undefined); // 복제할 대상이 없음
   const dst = join(args.worktreePath, "node_modules");
+
+  try {
+    await rm(dst, { recursive: true, force: true });
+  } catch (e) {
+    return err({ stderr: (e as Error).message, code: -1 });
+  }
+
   // macOS APFS의 Copy-on-Write 활용: cp -c
-  return await runShell("cp", ["-c", "-R", src, dst]);
+  const result = await runShell("cp", ["-c", "-R", src, dst], undefined, CLONEFILE_TIMEOUT_MS);
+  if (result.ok) return result;
+
+  try {
+    await rm(dst, { recursive: true, force: true });
+  } catch (e) {
+    return err({
+      stderr: `${result.error.stderr}\nFailed to clean partial node_modules clone: ${(e as Error).message}`,
+      code: result.error.code,
+    });
+  }
+
+  return result;
 }
 
 /**
@@ -110,10 +130,15 @@ async function runShell(
   const env = await commandEnvironment();
 
   return new Promise((resolve) => {
-    const child = spawn(cmd, argv, { cwd, env });
+    const child = spawn(cmd, argv, { cwd, env, detached: true });
     const errs: Buffer[] = [];
     let timer: NodeJS.Timeout | null = null;
-    if (timeoutMs) timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
+    let timedOut = false;
+    if (timeoutMs)
+      timer = setTimeout(() => {
+        timedOut = true;
+        killProcessGroup(child.pid);
+      }, timeoutMs);
     child.stderr.on("data", (b) => errs.push(b));
     child.stdout.on("data", () => {
       /* 버퍼만 비우고 사용하지 않음 */
@@ -126,9 +151,43 @@ async function runShell(
       if (timer) clearTimeout(timer);
       const stderr = Buffer.concat(errs).toString("utf8");
       if (code === 0) resolve(ok(undefined));
-      else resolve(err({ stderr, code: code ?? -1 }));
+      else
+        resolve(
+          err({
+            stderr: timedOut ? timeoutMessage(cmd, argv, timeoutMs, stderr) : stderr,
+            code: code ?? -1,
+          })
+        );
     });
   });
+}
+
+function killProcessGroup(pid: number | undefined): void {
+  if (!pid) return;
+  try {
+    process.kill(-pid, "SIGKILL");
+  } catch {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // Process already exited.
+    }
+  }
+}
+
+function timeoutMessage(cmd: string, argv: string[], timeoutMs: number, stderr: string): string {
+  const command = [cmd, ...argv].join(" ");
+  const timeout = formatDuration(timeoutMs);
+  const detail = stderr.trim();
+  return detail
+    ? `Command timed out after ${timeout}: ${command}\n${detail}`
+    : `Command timed out after ${timeout}: ${command}`;
+}
+
+function formatDuration(timeoutMs: number): string {
+  if (timeoutMs % 60_000 === 0) return `${timeoutMs / 60_000}m`;
+  if (timeoutMs % 1_000 === 0) return `${timeoutMs / 1_000}s`;
+  return `${timeoutMs}ms`;
 }
 
 async function commandEnvironment(): Promise<NodeJS.ProcessEnv> {
