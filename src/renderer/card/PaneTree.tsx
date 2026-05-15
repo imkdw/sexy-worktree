@@ -4,7 +4,7 @@ import "allotment/dist/style.css";
 import { AlertCircle, FolderX } from "lucide-react";
 import type { PaneNode } from "@shared/pane";
 import type { PtySpawnError } from "@shared/ipc";
-import type { LeafEntry } from "../terminal/Terminal";
+import { installLeafEntryKeyHandler, type LeafEntry } from "../terminal/Terminal";
 import { Icon } from "../icons/Icon";
 import { cn } from "../lib/cn";
 
@@ -96,6 +96,7 @@ function LeafSlot({
     } else if (entry.term.element.parentElement !== placeholder) {
       placeholder.appendChild(entry.term.element);
     }
+    installLeafEntryKeyHandler(entry);
     try {
       entry.fit.fit();
     } catch {

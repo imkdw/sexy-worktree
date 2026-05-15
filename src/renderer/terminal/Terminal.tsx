@@ -20,6 +20,27 @@ export type LeafEntry = {
 
 export type SpawnResult = { ok: true; id: string } | { ok: false; error: PtySpawnError };
 
+const CLAUDE_SHIFT_ENTER_SEQUENCE = "\x1b\r";
+const domKeyHandlers = new WeakMap<LeafEntry, { element: HTMLElement; dispose: () => void }>();
+
+function isPlainShiftEnter(ev: KeyboardEvent): boolean {
+  const isEnter =
+    ev.key === "Enter" ||
+    ev.key === "NumpadEnter" ||
+    ev.code === "Enter" ||
+    ev.code === "NumpadEnter" ||
+    ev.keyCode === 13;
+  return isEnter && ev.shiftKey && !ev.metaKey && !ev.ctrlKey && !ev.altKey;
+}
+
+function sendClaudeShiftEnter(entry: LeafEntry): void {
+  if (entry.ptyId) {
+    void api.pty.write({ id: entry.ptyId, data: CLAUDE_SHIFT_ENTER_SEQUENCE });
+  } else {
+    entry.term.input(CLAUDE_SHIFT_ENTER_SEQUENCE);
+  }
+}
+
 /**
  * leaf 단위 xterm + FitAddon 인스턴스를 만든다.
  *
@@ -45,22 +66,6 @@ export function createLeafEntry({ worktreePath }: { worktreePath: string }): Lea
   term.loadAddon(fit);
   installMarkdownPathLinkProvider(term, worktreePath);
 
-  term.attachCustomKeyEventHandler((ev) => {
-    if (ev.type !== "keydown") return true;
-
-    if (ev.key === "Enter" && ev.shiftKey && !ev.metaKey && !ev.ctrlKey && !ev.altKey) {
-      term.input("\x1b\r");
-      return false;
-    }
-
-    if (ev.key === "Backspace" && ev.metaKey && !ev.shiftKey && !ev.ctrlKey && !ev.altKey) {
-      term.input("\x15");
-      return false;
-    }
-
-    return true;
-  });
-
   const entry: LeafEntry = {
     term,
     fit,
@@ -72,6 +77,22 @@ export function createLeafEntry({ worktreePath }: { worktreePath: string }): Lea
     onExit: null,
     onSpawnError: null,
   };
+
+  term.attachCustomKeyEventHandler((ev) => {
+    if (ev.type !== "keydown") return true;
+
+    if (isPlainShiftEnter(ev)) {
+      sendClaudeShiftEnter(entry);
+      return false;
+    }
+
+    if (ev.key === "Backspace" && ev.metaKey && !ev.shiftKey && !ev.ctrlKey && !ev.altKey) {
+      term.input("\x15");
+      return false;
+    }
+
+    return true;
+  });
 
   term.onData((data) => {
     if (entry.ptyId) void api.pty.write({ id: entry.ptyId, data });
@@ -93,6 +114,33 @@ export function createLeafEntry({ worktreePath }: { worktreePath: string }): Lea
   });
 
   return entry;
+}
+
+export function installLeafEntryKeyHandler(entry: LeafEntry): void {
+  const element = entry.term.element;
+  if (!element) return;
+
+  const existing = domKeyHandlers.get(entry);
+  if (existing?.element === element) return;
+  existing?.dispose();
+
+  const onKeyDown = (ev: KeyboardEvent): void => {
+    if (!isPlainShiftEnter(ev)) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    sendClaudeShiftEnter(entry);
+  };
+
+  element.addEventListener("keydown", onKeyDown, true);
+  domKeyHandlers.set(entry, {
+    element,
+    dispose: () => element.removeEventListener("keydown", onKeyDown, true),
+  });
+}
+
+function uninstallLeafEntryKeyHandler(entry: LeafEntry): void {
+  domKeyHandlers.get(entry)?.dispose();
+  domKeyHandlers.delete(entry);
 }
 
 /**
@@ -145,6 +193,7 @@ export function disposePtyForEntry(entry: LeafEntry): void {
  * entry 전체 정리 — PTY kill + xterm dispose. leaf가 트리에서 영구 제거될 때 사용.
  */
 export function disposeLeafEntry(entry: LeafEntry): void {
+  uninstallLeafEntryKeyHandler(entry);
   disposePtyForEntry(entry);
   entry.term.dispose();
 }
