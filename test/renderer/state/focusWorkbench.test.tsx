@@ -11,6 +11,8 @@ declare global {
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+type LocalStorageStub = Pick<Storage, "clear" | "getItem" | "removeItem" | "setItem">;
+
 const statusMock = vi.fn().mockResolvedValue(ok({ changes: [] }));
 let mode: "overview" | "focus" = "focus";
 let activeId = "/repo";
@@ -27,6 +29,31 @@ function installApiMock(): void {
       status: statusMock,
     },
   } as unknown as typeof window.api;
+}
+
+function installLocalStorage(): void {
+  const store = new Map<string, string>();
+  const localStorageStub: LocalStorageStub = {
+    clear: vi.fn(() => {
+      store.clear();
+    }),
+    getItem: vi.fn((key: string) => store.get(key) ?? null),
+    removeItem: vi.fn((key: string) => {
+      store.delete(key);
+    }),
+    setItem: vi.fn((key: string, value: string) => {
+      store.set(key, value);
+    }),
+  };
+
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: localStorageStub,
+  });
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: localStorageStub,
+  });
 }
 
 async function mountProvider(): Promise<{
@@ -100,6 +127,7 @@ describe("FocusWorkbenchProvider", () => {
   let cleanup: (() => void) | null = null;
 
   beforeEach(() => {
+    installLocalStorage();
     document.body.innerHTML = "";
     localStorage.clear();
     mode = "focus";
