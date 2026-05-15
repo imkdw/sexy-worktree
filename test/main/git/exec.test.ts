@@ -31,4 +31,14 @@ describe("gitExec", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.stderr).toMatch(/usage|unknown/i);
   });
+
+  it("reports a clear timeout message", async () => {
+    const r = await gitExec(["-c", "alias.pause=!sleep 1", "pause"], {
+      cwd: repo,
+      timeoutMs: 10,
+    });
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error.stderr).toContain("Command timed out after 10ms: git -c");
+  });
 });
